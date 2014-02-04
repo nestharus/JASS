@@ -1,0 +1,2425 @@
+[size=5][b]Warning[/b][/size]
+Synchronization of data in multiplayer games can take a few minutes [b]in-game[/b] to sync. The longer the code, the longer it takes to sync.
+
+MD5 adds 128 bits to the code
+AES formats the code to 128 bit blocks
+
+Using either of these will make the sync time really long (2-5 minutes). Players will not be able to do anything at all until the synchronization is complete. Units won't be able to be ordered, etc. Cinematics also won't be able to be done as these break Network.
+
+At this point, unless you have a tiny amount of data (like 1-3 numbers), I recommend traditional save/load. Furthermore, I do not recommend enabling any of the protection unless your game can only have 2-3 players in it. I recommend using Scrambler and Knuth Checksum otherwise. Knuth minimally increases code size and Scrambler just scrambles up the code, no formatting required. As such, you'll have to use BigInt and then put all of the digits (32 bit or 16 bit or w/e) into BitInt. Right now BigInt doesn't allow you to do this easily.
+
+Another warning is that this does not currently support selecting a user hard drive. As such, if the user has no C drive, the user will disconnect.
+
+
+
+[otable]
+	[tr]
+		[titletd][/titletd]
+		[titletd][size=6][color=#ccaa00]Codeless Save/Load[/color][/size][/titletd]
+		[titletd]
+			[size=2][color=#60a600][right]	v1.0.1.1
+											by Nestharus[/right][/color][/size]
+		[/titletd]
+	[/tr]
+	[tr]
+		[tdalt][size=5][color=#222222]__[/color][/size][/tdalt]
+		[td][center]
+			[otable][td]
+			[indent]
+				The map provided supports both vJASS and GUI
+
+				It can be used to implement codeless save/load in Warcraft 3, similar to Starcraft 2 banks
+
+				Codeless save/load will only work on Windows machines. There are very few mac players, so this isn't a big deal
+			[/indent]
+			[color=#332c29]____________________________________________________________________________________________________[/color]
+			[/td][/otable]
+		[/center][/td]
+		[tdalt][/tdalt]
+	[/tr]
+
+	[tr]
+		[tdalt][/tdalt]
+		[td][indent][size=5][color=#d0f680][b]Features[/b][/color][/size][/indent][/td]
+		[tdalt][/tdalt]
+	[/tr]
+	[tr]
+		[tdalt][/tdalt]
+		[td][center][tabs]
+			[tab=In-Depth vJASS Save/Load Tutorial]
+				[center][otable]
+				[tr]
+					[indent]
+						Learn about
+						[list]
+							[*]Save/Load Settings
+							[*]Encryption and Hashing
+							[*]Saving Techniques
+							[*]Dangers of Saving and their Fixes
+							[*]Loading Techniques
+							[*]Multi Profile Save/Load
+							[*]Multi Version Save/Load
+						[/list]
+
+						Includes
+						[list]
+							[*]Save/Load using File IO and Networking (used for making save/load systems)
+							[*]128 Bit AES Encryption With Varying Encryption Strength
+							[*]MD5 Hashing
+							[*]Various useful snippets for saving units and items
+							[*]Fully commented demo of a basic save/load system (GUI + vJASS)
+							[*]Demo of multi version save/load system in vJASS (contained in map)
+							[*]Demo of alternating file save/load system in vJASS (contained in map)
+							[*]Demo of multi profile save/load system in vJASS (contained in map)
+						[/list]
+					[/indent]
+					[color=#332c29]____________________________________________________________________________________________________[/color]
+				[/tr]
+				[/otable][/center]
+			[/tab]
+			[tab=GUI Save/Load]
+				[center][otable]
+				[tr]
+					[indent]
+						A Save/Load System written to support GUI is included in the demo map. It has all basic features that a save/load system needs.
+
+						A working demonstration fully using the save/load system, complete with both GUI and Trigger Comments, is included.
+					[/indent]
+					[color=#332c29]____________________________________________________________________________________________________[/color]
+				[/tr]
+				[/otable][/center]
+			[/tab]
+		[/tabs][/center][/td]
+		[tdalt][/tdalt]
+	[/tr]
+
+	[tr]
+		[tdalt][/tdalt]
+		[td][indent][size=5][color=#d0f680][b]Code[/b][/color][/size][/indent][/td]
+		[tdalt][/tdalt]
+	[/tr]
+	[tr]
+		[tdalt][/tdalt]
+		[td][center][tabs]
+			[tab=System]
+				[tabs]
+					[tab=Save/Load]
+						[center][otable][td]
+							[center][jass]
+/*
+struct SaveCode extends array
+    static method create takes nothing returns SaveCode
+    method destroy takes nothing returns nothing
+    
+    method write takes integer num returns nothing
+        -   writes the number to the code
+            Range: -2147483648, 2147483647
+
+struct LoadCode extends array
+    readonly integer playerId
+        -   player that owns the code
+        
+    method read takes nothing returns integer
+        -   returns integer written to code in order written
+        
+    method destroy takes nothing returns nothing
+
+function FormatBitInt takes BitInt data returns nothing
+        -   Formats code to multiple of 128 bits
+            use this before applying hash, encryption, or saving
+
+function SaveFile takes string mapName, string fileName, BitInt data returns nothing
+        -   saves code to file
+
+function LoadFile takes string mapName, string fileName returns LoadStream
+        -   returns set of codes from file (1 per player)
+        
+function GetLoadProgress takes integer playerId returns real
+        -   returns load progress of player (call while LoadFile is running)
+
+struct LoadStream extends array
+    method read takes nothing returns LoadCode
+        -   read code from stream (get a player's code)
+            0 if no codes left
+            
+    method destroy takes nothing returns nothing
+*/
+
+library FormatBitInt uses BitInt
+    function FormatBitInt takes BitInt data returns nothing
+        local BitInt node = data
+        local integer count = 0
+        
+        if (0 == data) then
+            return
+        endif
+        
+        loop
+            set node = node.next
+            exitwhen node == data
+            
+            if (node.bitSize < 8) then
+                set node.bits = node.bits*GetBitNumber(8 - node.bitSize + 1)
+                set node.bitSize = 8
+            endif
+            set count = count + 1
+        endloop
+        
+        set data.bitCount = count*8
+        set count = 16 - count + count/16*16
+        set count = count - count/16*16
+        if (0 == data.bitCount) then
+            set count = 16
+        endif
+        loop
+            exitwhen 0 == count
+            set count = count - 1
+            call data.addNode()
+            set data.prev.bitSize = 8
+            set data.bitCount = data.bitCount + 8
+        endloop
+    endfunction
+endlibrary
+
+library SaveCode uses BitInt
+    struct SaveCode extends array
+        static method create takes nothing returns SaveCode
+            return BitInt.create()
+        endmethod
+        method write takes integer num returns nothing
+            local integer size = GetBitSize(num)
+            if (0 == size) then
+                set size = 1
+            endif
+            if (5 + size > 32) then
+                call BitInt(this).write(size - 1, 5)
+                call BitInt(this).write(num, size)
+            else
+                call BitInt(this).write((size - 1)*GetBitNumber(size + 1) + num, size + 5)
+            endif
+        endmethod
+        method destroy takes nothing returns nothing
+            call BitInt(this).destroy()
+        endmethod
+    endstruct
+endlibrary
+
+library LoadCode uses BitInt
+    struct LoadCode extends array
+        readonly integer playerId
+        
+        static method create takes integer playerId returns LoadCode
+            local thistype this = BitInt.create()
+            
+            set this.playerId = playerId
+            
+            return this
+        endmethod
+        method read takes nothing returns integer
+            return BitInt(this).read(BitInt(this).read(5) + 1)
+        endmethod
+        method destroy takes nothing returns nothing
+            call BitInt(this).destroy()
+        endmethod
+    endstruct
+endlibrary
+
+library SaveFile uses SaveCode, FileIO, Thread
+    function SaveFile takes string mapName, string fileName, BitInt data returns nothing
+        local integer speed = 8
+        local integer count = data.bitCount
+        local BitInt node = data
+        local File file = 0
+        local integer rounds
+        local Thread thread = Thread.create()
+        local integer lineLength
+        local string line
+        local boolean doSync = true
+        
+        if (data != 0) then
+            set file = File.open(mapName, fileName, File.Flag.WRITE)
+        endif
+        
+        if (count - count/32*32 != 0) then
+            set count = count/32 + 1
+        else
+            set count = count/32
+        endif
+        
+        if (0 != file) then
+            call file.write(I2S(count))
+        endif
+        
+        loop
+            if (node != 0) then
+                set rounds = speed
+                loop
+                    set lineLength = 128
+                    set line = ""
+                    loop
+                        exitwhen node.next == data or 0 == lineLength
+                        set node = node.next
+                        set lineLength = lineLength - 2
+                        
+                        set line = line + BitInt.charTable[node.bits/16] + BitInt.charTable[node.bits - node.bits/16*16]
+                    endloop
+                    
+                    if (line == "") then
+                        set line = BitInt.charTable[0]
+                    endif
+                    call file.write(line)
+                    
+                    set rounds = rounds - 1
+                    exitwhen node.next == data or 0 == rounds
+                endloop
+            endif
+            if (doSync and (node == 0 or node.next == data)) then
+                set node = 0
+                call thread.sync()
+                set doSync = false
+            endif
+            call TriggerSyncReady()
+            
+            exitwhen thread.synced
+        endloop
+        
+        call thread.destroy()
+        
+        if (0 != file) then
+            call file.close()
+        endif
+    endfunction
+endlibrary
+
+library LoadFile uses Network, LoadCode, FileIO, BitInt
+    globals
+        private real array progress
+    endglobals
+    function GetLoadProgress takes integer playerId returns real
+        return progress[playerId]
+    endfunction
+    
+    private struct Loader extends array
+        private File file
+        private string buffer
+        private integer bufferPosition
+        
+        private method getNextBroadcast takes nothing returns integer
+            set bufferPosition = bufferPosition + 8
+            if (bufferPosition == 128) then
+                set buffer = file.read()
+                set bufferPosition = 0
+            endif
+            
+            return BitInt.char2Int(SubString(buffer, bufferPosition + 0, bufferPosition + 1))*0x10000000 + /*
+            */ BitInt.char2Int(SubString(buffer, bufferPosition + 1, bufferPosition + 2))*0x1000000 + /*
+            */ BitInt.char2Int(SubString(buffer, bufferPosition + 2, bufferPosition + 3))*0x100000 + /*
+            */ BitInt.char2Int(SubString(buffer, bufferPosition + 3, bufferPosition + 4))*0x10000 + /*
+            */ BitInt.char2Int(SubString(buffer, bufferPosition + 4, bufferPosition + 5))*0x1000 + /*
+            */ BitInt.char2Int(SubString(buffer, bufferPosition + 5, bufferPosition + 6))*0x100 + /*
+            */ BitInt.char2Int(SubString(buffer, bufferPosition + 6, bufferPosition + 7))*0x10 + /*
+            */ BitInt.char2Int(SubString(buffer, bufferPosition + 7, bufferPosition + 8))
+        endmethod
+        
+        private method broadcastPercentComplete takes integer playerId, real percent returns nothing
+            set progress[playerId] = percent
+        endmethod
+        
+        implement StreamMod
+        
+        static method loadFile takes string mapName, string fileName returns Loader
+            local File file = File.open(mapName, fileName, File.Flag.READ)
+            local thistype this = allocate(S2I(file.read()))
+            local integer playerId = 11
+            set this.file = file
+            set buffer = ""
+            set bufferPosition = 128 - 8
+            call this.synchronize()
+            call file.close()
+            loop
+                set progress[playerId] = -1
+                exitwhen 0 == playerId
+                set playerId = playerId - 1
+            endloop
+            return this
+        endmethod
+        
+        private static method onInit takes nothing returns nothing
+            local integer playerId = 11
+            loop
+                set progress[playerId] = -1
+                exitwhen 0 == playerId
+                set playerId = playerId - 1
+            endloop
+        endmethod
+    endstruct
+    
+    struct LoadStream extends array
+        private integer index
+        
+        method read takes nothing returns LoadCode
+            local BitInt data
+            local integer playerId
+            local integer size
+            local integer rounds
+            local integer value
+            local integer pos
+            
+            loop
+                exitwhen index == 12 or (Loader(this).size[index] != 0 and GetPlayerSlotState(Player(index)) == PLAYER_SLOT_STATE_PLAYING and GetPlayerController(Player(index)) == MAP_CONTROL_USER)
+                set index = index + 1
+            endloop
+            
+            if (index == 12) then
+                return 0
+            endif
+            
+            set data = LoadCode.create(index)
+            
+            set pos = 0
+            set playerId = index
+            set size = Loader(this).size[playerId]
+            set data.bitCount = size*32
+            
+            loop
+                set rounds = 512
+                loop
+                    set value = Loader(this).read(playerId, pos)
+                    
+                    call data.addNode()
+                    if (value < 0) then
+                        set data.prev.bits = 0x80 + (-2147483648 + value)/0x1000000
+                    else
+                        set data.prev.bits = value/0x1000000
+                    endif
+                    set data.prev.bitSize = 8
+                    set value = value - data.prev.bits*0x1000000
+                    
+                    call data.addNode()
+                    set data.prev.bits = value/0x10000
+                    set data.prev.bitSize = 8
+                    set value = value - data.prev.bits*0x10000
+                    
+                    call data.addNode()
+                    set data.prev.bitSize = 8
+                    set data.prev.bits  = value/0x100
+                    
+                    call data.addNode()
+                    set data.prev.bitSize = 8
+                    set data.prev.bits  = value - value/0x100*0x100
+                    
+                    set pos = pos + 1
+                    set rounds = rounds - 1
+                    exitwhen pos == size or 0 == rounds
+                endloop
+                call TriggerSyncReady()
+                
+                exitwhen pos == size
+            endloop
+            
+            set index = index + 1
+            
+            return data
+        endmethod
+        method destroy takes nothing returns nothing
+            set index = 0
+            call Loader(this).deallocate()
+        endmethod
+    endstruct
+    
+    function LoadFile takes string mapName, string fileName returns LoadStream
+        return Loader.loadFile(mapName, fileName)
+    endfunction
+endlibrary
+							[/jass][/center]
+							[color=#332c29]____________________________________________________________________________________________________[/color]
+						[/td][/otable][/center]
+					[/tab]
+					[tab=Encryption]
+						[center][otable][td]
+							[center][jass]
+/*
+Thanks to Dr Super Good for help figuring out getNextDataSet step #1 on Decoder
+
+struct Encoder extends array
+    static method create takes string password returns Encoder
+        -   create an Encoder. Used for encryption
+            suggested to create an array of encoders, 1 for each player
+            password should be player name + password
+    
+    method encrypt takes BitInt data, integer strength returns nothing
+    method decrypt takes BitInt data, integer strength returns nothing
+        -   encrypt/decrypt the code
+            strength goes from 1 to 16
+            suggested strength of 2
+*/
+
+library Encoder uses BitInt, AES, Matrix128, Ascii, MD5
+    globals
+        private integer AES_INTERVAL
+    endglobals
+    
+    private struct Encryptor extends array
+        private static AES encoder
+        private static Matrix128 buffer
+        private static BitInt node
+        private static BitInt data
+        private static integer remainingData
+        
+        private static method loadBuffer takes nothing returns nothing
+            local integer position = 0
+            local BitInt node = thistype.node
+            
+            loop
+                set buffer[position] = node.bits
+                set node = node.next
+                set position = position + 1
+                exitwhen position == 16
+            endloop
+        endmethod
+        private static method unloadBuffer takes nothing returns nothing
+            local integer position = 0
+            local BitInt node = thistype.node
+            
+            loop
+                set node.bits = buffer[position]
+                set node = node.next
+                set position = position + 1
+                exitwhen position == 16
+            endloop
+        endmethod
+        private static method getNextDataSet takes nothing returns nothing
+            local integer dataSet = AES_INTERVAL
+            
+            loop
+                set node = node.next
+                set dataSet = dataSet - 1
+                set remainingData = remainingData - 8
+                exitwhen 0 == dataSet or remainingData == 0
+            endloop
+            
+            if (remainingData + AES_INTERVAL*8 == 128) then
+                set remainingData = 0
+                return
+            endif
+            
+            if (remainingData > 0 and remainingData < 128) then
+                set remainingData = 8*AES_INTERVAL
+                set dataSet = 16
+                set node = thistype.data
+                loop
+                    set node = node.prev
+                    set dataSet = dataSet - 1
+                    exitwhen 0 == dataSet
+                endloop
+            endif
+        endmethod
+        
+        private static method executeEncryption takes nothing returns nothing
+            local integer round = 0
+            
+            loop
+                call loadBuffer()
+                
+                call encoder.encrypt(buffer)
+                
+                call unloadBuffer()
+                
+                call getNextDataSet()
+                set round = round + 1
+                exitwhen round == 5 or 0 == remainingData
+            endloop
+        endmethod
+        
+        static method execute takes BitInt data, AES encoder, integer interval returns nothing
+            local Thread thread = Thread.create()
+            local boolean doSync = true
+            
+            if (data != 0) then
+                set AES_INTERVAL = interval
+                
+                set thistype.node = data.next
+                set thistype.data = data
+                
+                set thistype.encoder = encoder
+                
+                set thistype.buffer = Matrix128.create()
+                
+                set thistype.remainingData = data.bitCount
+            else
+                set remainingData = 0
+            endif
+            
+            loop
+                if (remainingData != 0) then
+                    call executeEncryption()
+                endif
+                if (doSync and 0 == remainingData) then
+                    call thread.sync()
+                    set doSync = false
+                endif
+                call TriggerSyncReady()
+                
+                exitwhen thread.synced
+            endloop
+            
+            call thread.destroy()
+            
+            if (data != 0) then
+                call thistype.buffer.destroy()
+            endif
+        endmethod
+    endstruct
+    private struct Decryptor extends array
+        private static AES encoder
+        private static Matrix128 buffer
+        private static BitInt node
+        private static BitInt data
+        private static integer remainingData
+        
+        private static method loadBuffer takes nothing returns nothing
+            local integer position = 15
+            local BitInt node = thistype.node
+            
+            loop
+                set buffer[position] = node.bits
+                set node = node.prev
+                exitwhen position == 0
+                set position = position - 1
+            endloop
+        endmethod
+        private static method unloadBuffer takes nothing returns nothing
+            local integer position = 15
+            local BitInt node = thistype.node
+            
+            loop
+                set node.bits = buffer[position]
+                set node = node.prev
+                exitwhen position == 0
+                set position = position - 1
+            endloop
+        endmethod
+        private static method getNextDataSet takes nothing returns nothing
+            local integer dataSet = AES_INTERVAL
+            
+            if (remainingData == data.bitCount) then
+                set dataSet = (remainingData/8 - 16) - (((remainingData/8 - 16)/AES_INTERVAL)*AES_INTERVAL)
+                if (0 == dataSet) then
+                    set dataSet = AES_INTERVAL
+                endif
+            endif
+            
+            loop
+                set node = node.prev
+                set dataSet = dataSet - 1
+                set remainingData = remainingData - 8
+                exitwhen 0 == dataSet or remainingData < 128
+            endloop
+        endmethod
+        
+        private static method executeDecryption takes nothing returns nothing
+            local integer round = 0
+            
+            loop
+                call loadBuffer()
+                
+                call encoder.decrypt(buffer)
+                
+                call unloadBuffer()
+                
+                call getNextDataSet()
+                set round = round + 1
+                exitwhen round == 4 or remainingData < 128
+            endloop
+        endmethod
+        
+        static method execute takes BitInt data, AES encoder, integer interval returns nothing
+            set AES_INTERVAL = interval
+            
+            set thistype.node = data.prev
+            set thistype.data = data
+            
+            set thistype.encoder = encoder
+            
+            set thistype.buffer = Matrix128.create()
+            
+            set thistype.remainingData = data.bitCount
+            
+            loop
+               exitwhen remainingData < 128
+               call executeDecryption()
+               call TriggerSyncReady()
+            endloop
+            
+            call thistype.buffer.destroy()
+        endmethod
+    endstruct
+    struct Encoder extends array
+        private static method S2BI takes string str returns BitInt
+            local BitInt data = BitInt.create()
+            
+            local integer len = StringLength(str)
+            local integer pos = 0
+            
+            loop
+                call data.addNode()
+                set data.bitCount = data.bitCount + 8
+                set data.prev.bitSize = 8
+                set data.prev.bits = Char2Ascii(SubString(str, pos, pos + 1))
+                set pos = pos + 1
+                exitwhen pos == len
+            endloop
+            call TriggerSyncStart()
+            
+            return data
+        endmethod
+
+        static method create takes string password returns thistype
+            local Matrix128 dcipher = Matrix128.create()
+            local BitInt data = S2BI(password)
+            local BitInt cipher = MD5(data)
+            local integer position = 0
+            
+            loop
+                set cipher = cipher.next
+                set dcipher[position] = cipher.bits
+                
+                set cipher = cipher.next
+                set dcipher[position] = dcipher[position]*0x10 + cipher.bits
+                
+                set position = position + 1
+                exitwhen position == 16
+            endloop
+            
+            call data.destroy()
+            call cipher.next.destroy()
+            
+            return AES.create(dcipher)
+        endmethod
+        
+        method encrypt takes BitInt data, integer strength returns nothing
+            set strength = 16 - strength + 1
+            if (0 < strength and strength < 17) then
+                call Encryptor.execute(data, this, strength)
+            endif
+        endmethod
+        
+        method decrypt takes BitInt data, integer strength returns nothing
+            set strength = 16 - strength + 1
+            if (0 < strength and strength < 17) then
+                call Decryptor.execute(data, this, strength)
+            endif
+        endmethod
+    endstruct
+endlibrary
+							[/jass][/center]
+							[color=#332c29]____________________________________________________________________________________________________[/color]
+						[/td][/otable][/center]
+					[/tab]
+					[tab=Hash]
+						[center][otable][td]
+							[center][jass]
+/*
+function ApplyHash takes BitInt data returns nothing
+    -   apply hash to code
+        hash makes it very difficult for a player to modify a code
+    
+function ValidateHash takes BitInt data returns boolean
+    -   validates a code (given that a hash was applied to it)
+*/
+
+library CryptoHash uses BitInt, MD5
+    function ApplyHash takes BitInt data returns nothing
+        local Thread thread = Thread.create()
+        local BitInt hash
+        local boolean doSync = true
+        
+        loop
+            if (0 != data) then
+                set hash = MD5(data)
+                call data.pushFront(hash)
+                call hash.destroy()
+                set data = 0
+            endif
+            if (doSync) then
+                call thread.sync()
+                set doSync = false
+            endif
+            call TriggerSyncReady()
+            
+            exitwhen thread.synced
+        endloop
+        
+        call thread.destroy()
+    endfunction
+    
+    function ValidateHash takes BitInt data returns boolean
+        local BitInt hash = data.popFront(16)
+        local BitInt hash2 = MD5(data)
+        local integer i = 16
+        local boolean valid = true
+        
+        loop
+            set hash = hash.prev
+            set hash2 = hash2.prev
+            
+            if (hash.bits != hash2.bits) then
+                set valid = false
+            endif
+            
+            set i = i - 1
+            exitwhen 0 == i
+        endloop
+        
+        call hash2.prev.destroy()
+        call hash.prev.destroy()
+        
+        return valid
+    endfunction
+endlibrary
+							[/jass][/center]
+							[color=#332c29]____________________________________________________________________________________________________[/color]
+						[/td][/otable][/center]
+					[/tab]
+					[tab=GUI Save/Load]
+						[center][otable][td]
+							[center][jass]
+struct SaveLoadGUI extends array
+    private static Encoder array encoder
+    
+    private static method onSave takes nothing returns nothing
+        local integer playerId = R2I(udg_SL_Save + .5)
+        local integer encPlayerId = playerId
+        local Thread thread = Thread.create()
+        local SaveCode data = 0
+        local boolean doSync = true
+        local integer save
+        
+        set udg_SL_Save = -1
+        
+        loop
+            if (GetPlayerId(GetLocalPlayer()) == playerId) then
+                set data = SaveCode.create()
+                
+                set playerId = -1
+                set doSync = false
+                
+                set save = 0
+                loop
+                    exitwhen save == udg_SL_SaveCount
+                    
+                    if (udg_SL_Item[save] != -1) then
+                        call BitInt(data).write(2, 2)
+                        call data.write(udg_SL_Item[save])
+                    elseif (udg_SL_Unit[save] != -1) then
+                        call BitInt(data).write(3, 2)
+                        call data.write(udg_SL_Unit[save])
+                    else
+                        call BitInt(data).write(1, 2)
+                        call data.write(udg_SL_Integer[save])
+                    endif
+                    
+                    set udg_SL_Item[save] = -1
+                    set udg_SL_Unit[save] = -1
+                    
+                    set save = save + 1
+                endloop
+                
+                set udg_SL_SaveCount = 0
+                
+                call thread.sync()
+            elseif (doSync) then
+                set doSync = false
+                call thread.sync()
+            endif
+            
+            call TriggerSyncReady()
+            exitwhen thread.synced
+        endloop
+        
+        call FormatBitInt.evaluate(data)
+        if (udg_SL_TamperProtection) then
+            call ApplyHash(data)
+        endif
+        call encoder[encPlayerId].encrypt(data, udg_SL_EncryptionStrength)
+        
+        call SaveFile(udg_SL_MapName, GetPlayerName(GetLocalPlayer()), data)
+        
+        if (0 != data) then
+            call data.destroy()
+        endif
+        
+        set udg_SL_OnSaveComplete = -1
+        set udg_SL_OnSaveComplete = encPlayerId
+    endmethod
+
+    private static method updateProgress takes nothing returns nothing
+        local integer playerId = 11
+        loop
+            set udg_SL_LoadProgress[playerId] = GetLoadProgress(playerId)
+            exitwhen 0 == playerId
+            set playerId = playerId - 1
+        endloop
+        
+        set udg_SL_UpdateLoadProgress = -1
+        set udg_SL_UpdateLoadProgress = 1.000
+    endmethod
+    private static method run takes nothing returns nothing
+        local LoadStream stream
+        local LoadCode data
+        local timer t
+        local integer valueType
+        local boolean doLoad
+    
+        call WaitForGameToStart()
+        
+        set udg_SL_StartLoad = -1
+        set udg_SL_StartLoad = 1.000
+        set t = CreateTimer()
+        call TimerStart(t,.03125000,true,function thistype.updateProgress)
+        set stream = LoadFile(udg_SL_MapName, GetPlayerName(GetLocalPlayer()))
+        call PauseTimer(t)
+        call DestroyTimer(t)
+        set t = null
+        set udg_SL_LoadingEnabled = File.enabled
+        set udg_SL_EndLoad = -1
+        set udg_SL_EndLoad = 1.000
+        
+        loop
+            set data = stream.read()
+            exitwhen 0 == data
+            
+            call encoder[data.playerId].decrypt(data, udg_SL_EncryptionStrength)
+            
+            set udg_SL_LoadCount = 0
+            
+            set doLoad = not udg_SL_TamperProtection or ValidateHash(data)
+            
+            if (doLoad) then
+                loop
+                    set valueType = BitInt(data).read(2)
+                    exitwhen 0 == valueType
+                    
+                    set udg_SL_Item[udg_SL_LoadCount] = -1
+                    set udg_SL_Unit[udg_SL_LoadCount] = -1
+                    if (valueType == 1) then
+                        set udg_SL_Integer[udg_SL_LoadCount] = data.read()
+                    elseif (valueType == 2) then
+                        set udg_SL_Item[udg_SL_LoadCount] = data.read()
+                    elseif (valueType == 3) then
+                        set udg_SL_Unit[udg_SL_LoadCount] = data.read()
+                    endif
+                    
+                    set udg_SL_LoadCount = udg_SL_LoadCount + 1
+                endloop
+                
+                set udg_SL_PlayerLoad = -1
+                set udg_SL_PlayerLoad = data.playerId
+            endif
+            
+            call data.destroy()
+            call TriggerSyncReady()
+        endloop
+        call stream.destroy()
+    endmethod
+    
+    private static method initItem takes nothing returns nothing
+        local integer i = 2500
+        loop
+            set udg_SL_Item[i] = -1
+        
+            exitwhen 0 == i
+            set i = i - 1
+        endloop
+    endmethod
+    private static method initUnit takes nothing returns nothing
+        local integer i = 2500
+        loop
+            set udg_SL_Unit[i] = -1
+        
+            exitwhen 0 == i
+            set i = i - 1
+        endloop
+    endmethod
+    
+    private static method init2 takes nothing returns nothing
+        local integer playerId = 11
+        local trigger t
+        
+        set udg_SL_LocalPlayer = GetLocalPlayer()
+        
+        call initItem.evaluate()
+        call initUnit.evaluate()
+        loop
+            if (GetPlayerSlotState(Player(playerId)) == PLAYER_SLOT_STATE_PLAYING and GetPlayerController(Player(playerId)) == MAP_CONTROL_USER) then
+                set encoder[playerId] = Encoder.create(GetPlayerName(Player(playerId)) + udg_SL_Password)
+            endif
+            
+            exitwhen 0 == playerId
+            set playerId = playerId - 1
+        endloop
+    
+        call run.execute()
+        
+        set udg_SL_Save = -1
+        
+        set t = CreateTrigger()
+        call TriggerRegisterVariableEvent(t, "udg_SL_Save", GREATER_THAN_OR_EQUAL, 0.00)
+        call TriggerAddAction(t, function thistype.onSave)
+        set t = null
+    endmethod
+    
+    private static method init takes nothing returns nothing
+        call DestroyTimer(GetExpiredTimer())
+        call init2.execute()
+    endmethod
+    private static method onInit takes nothing returns nothing
+        call TimerStart(CreateTimer(),0,false,function thistype.init)
+    endmethod
+endstruct
+							[/jass][/center]
+							[color=#332c29]____________________________________________________________________________________________________[/color]
+						[/td][/otable][/center]
+					[/tab]
+				[/tabs]
+			[/tab]
+			[tab=Snippets]
+				[tabs]
+					[tab=Save/Load Unit Snippets]
+						[center][otable][td]
+							[center][jass]
+/*
+function SaveItem takes item i, SaveCode data returns nothing
+function LoadItem takes LoadCode data returns item
+    -   save/load an item
+
+function SaveInventory takes unit u, SaveCode data returns nothing
+function LoadInventory takes unit u, LoadCode data returns nothing
+    -   save/load unit's inventory (up to unit's inventory size)
+        item charges done as well
+
+function SaveStates takes unit u, SaveCode data returns nothing
+function LoadStates takes unit u, LoadCode data returns nothing
+    -   save/load unit health/mana
+
+function SaveStats takes unit u, SaveCode data returns nothing
+function LoadStats takes unit u, LoadCode data returns nothing
+    -   save/load str, agi, int (if unit is hero)
+
+function SaveXP takes unit u, SaveCode data returns nothing
+function LoadXP takes unit u, LoadCode data returns nothing
+    -   save/load xp (if unit is hero)
+
+function SavePosition takes unit u, SaveCode data returns nothing
+function LoadPosition takes unit u, LoadCode data returns nothing
+    - save/load x, y, and facing
+
+function SaveUnit takes unit u, SaveCode data returns nothing
+function LoadUnit takes LoadCode data returns unit
+    - save/load all of the above
+*/
+
+library SaveLoadUnit uses SaveCode, LoadCode
+    globals
+        private item loadItem
+    endglobals
+    function SaveItem takes item i, SaveCode data returns nothing
+        call data.write(GetItemTypeId(i))
+        if (null != i) then
+            call data.write(GetItemCharges(i))
+        endif
+    endfunction
+    function LoadItem takes LoadCode data returns item
+        set loadItem = CreateItem(data.read(), 0, 0)
+        call SetItemCharges(loadItem, data.read())
+    
+        return loadItem
+    endfunction
+    
+    function SaveInventory takes unit u, SaveCode data returns nothing
+        local integer i = UnitInventorySize(u)
+        loop
+            exitwhen 0 == i
+            set i = i - 1
+            
+            call SaveItem(UnitItemInSlot(u, i), data)
+        endloop
+    endfunction
+    function LoadInventory takes unit u, LoadCode data returns nothing
+        local integer i = UnitInventorySize(u)
+        loop
+            exitwhen 0 == i
+            set i = i - 1
+            
+            call UnitAddItemToSlotById(u, data.read(), i)
+            if (null != UnitItemInSlot(u, i)) then
+                call SetItemCharges(UnitItemInSlot(u, i), data.read())
+            endif
+        endloop
+    endfunction
+    
+    function SaveStates takes unit u, SaveCode data returns nothing
+        call data.write(R2I(GetWidgetLife(u) + .5))
+        if (GetUnitState(u, UNIT_STATE_MAX_MANA) > 0) then
+            call data.write(R2I(GetUnitState(u, UNIT_STATE_MANA) + .5))
+        endif
+    endfunction
+    function LoadStates takes unit u, LoadCode data returns nothing
+        call SetWidgetLife(u, data.read())
+        if (GetUnitState(u, UNIT_STATE_MAX_MANA) > 0) then
+            call SetUnitState(u, UNIT_STATE_MANA, data.read())
+        endif
+    endfunction
+    
+    function SaveStats takes unit u, SaveCode data returns nothing
+        if (IsUnitType(u, UNIT_TYPE_HERO)) then
+            call data.write(GetHeroStr(u, false))
+            call data.write(GetHeroAgi(u, false))
+            call data.write(GetHeroInt(u, false))
+        endif
+    endfunction
+    function LoadStats takes unit u, LoadCode data returns nothing
+        if (IsUnitType(u, UNIT_TYPE_HERO)) then
+            call SetHeroStr(u, data.read(), true)
+            call SetHeroAgi(u, data.read(), true)
+            call SetHeroInt(u, data.read(), true)
+        endif
+    endfunction
+    
+    function SaveXP takes unit u, SaveCode data returns nothing
+        if (IsUnitType(u, UNIT_TYPE_HERO)) then
+            call data.write(GetHeroXP(u))
+        endif
+    endfunction
+    function LoadXP takes unit u, LoadCode data returns nothing
+        if (IsUnitType(u, UNIT_TYPE_HERO)) then
+            call SetHeroXP(u, data.read(), false)
+        endif
+    endfunction
+    
+    function SavePosition takes unit u, SaveCode data returns nothing
+        call data.write(R2I(GetUnitX(u) + .5))
+        call data.write(R2I(GetUnitY(u) + .5))
+        call data.write(R2I(GetUnitFacing(u) + .5))
+    endfunction
+    function LoadPosition takes unit u, LoadCode data returns nothing
+        call SetUnitX(u, data.read())
+        call SetUnitY(u, data.read())
+        call SetUnitFacing(u, data.read())
+    endfunction
+    
+    globals
+        private unit loadUnit
+    endglobals
+    function SaveUnit takes unit u, SaveCode data returns nothing
+        call data.write(GetUnitTypeId(u))
+        call SavePosition(u, data)
+        if (u != null) then
+            call SaveInventory(u, data)
+            call SaveStates(u, data)
+            call SaveStats(u, data)
+            call SaveXP(u, data)
+        endif
+    endfunction
+    function LoadUnit takes LoadCode data returns unit
+        set loadUnit = CreateUnit(Player(data.playerId), data.read(), data.read(), data.read(), data.read())
+        if (loadUnit != null) then
+            call LoadInventory(loadUnit, data)
+            call LoadStates(loadUnit, data)
+            call LoadStats(loadUnit, data)
+            call LoadXP(loadUnit, data)
+        endif
+        
+        return loadUnit
+    endfunction
+endlibrary
+							[/jass][/center]
+							[color=#332c29]____________________________________________________________________________________________________[/color]
+						[/td][/otable][/center]
+					[/tab]
+				[/tabs]
+			[/tab]
+    [/tabs][/center][/td]
+    [tdalt][/tdalt]
+  [/tr]
+
+
+	[tr]
+		[tdalt][/tdalt]
+		[td][indent][size=5][color=#d0f680][b]Documentation[/b][/color][/size][/indent][/td]
+		[tdalt][/tdalt]
+	[/tr]
+	[tr]
+		[tdalt][/tdalt]
+		[td][center][tabs]
+			[tab=vJASS Demo]
+			[center][otable]
+			[td][tabs]
+				[tab=readme]
+					[center][jass]
+/*
+*   This map includes
+*
+*       1. save/load system
+*           -   basic save/load
+*           -   does not actual implement save/load into a map, this is used
+*           -   to do save/load***
+*
+*       2. encryption system (extra)
+*           -   AES 128 bit
+*
+*           Encryption = scrambling
+*
+*       3. cryptographic hash system (extra)
+*           -   MD5
+*
+*           Hash = tamper protection
+*
+*   The 3 above systems can be used to create a map specific save/load system,
+*   either for vJASS or GUI.
+*
+*   The included GUI Save/Load System is one example of such a system, created
+*   for GUI users and general maps. It does not support advanced features as
+*   you'll later learn about though.
+*
+*   Besides the 3 systems, a collection of snippets are also included for
+*   saving units
+*
+*       SaveLoad Unit (see trigger comment for API)
+*/
+					[/jass][/center]
+					[color=#332c29]____________________________________________________________________________________________________[/color]
+				[/tab]
+				[tab=core]
+					[center][jass]
+/*
+*   The save/load core is where to place information general to your save/load
+*   system. This is purely for organizational purposes.
+*
+*   The core may include
+*
+*       1.  map name
+*       2.  encoder array
+*               2a. encryption strength (for encoders)
+*               2b. encoder password    (for encoders)
+*       3.  apply hash boolean
+*/
+
+/*
+*   Example
+*/
+scope SaveLoadCore
+    /*
+    *   Settings
+    */
+    globals
+        /*
+        *   This is the name of the map
+        */
+        constant string MAP_NAME = "MyFirstMap"
+        
+        /*
+        *   A more advanced save/load system may be used when saving perhaps
+        *   multiple heroes for a given map.
+        *
+        *   The naive approach to save multiple heroes is saving them all in
+        *   one code, then loading the entire code and allowing the player
+        *   to pick which hero they want to play as.
+        *
+        *   The smart approach is making 1 code for each hero and then having
+        *   a separate code that contains the list of heroes. This will make
+        *   the save/load faster.
+        *
+        *   Of course, alternatively, you could allow a player to pick a hero
+        *   and then attempt to load that hero before generating a new hero
+        *   (1 code per hero without the list).
+        *
+        *   If you'd prefer players be able to create multiple of the same
+        *   hero, you can have a list for each hero.
+        *
+        *   Putting all of the heroes into one code does improve security,
+        *   but it comes at the hefty cost of speed (possible FPS drop)
+        *   and data limits (limit is ~65,000 bits of data per code).
+        *
+        *   As such, the demonstration of save/load with vJASS provided
+        *   within this map is only a demonstration of what can be done.
+        *   It is not meant to be used as a system. This demonstration only
+        *   supports the naive approach stated above.
+        */
+        
+        /*
+        *   Encryption settings
+        */
+        constant integer ENCRYPTION_STRENGTH    = 2        //1 to 16
+        constant string ENCRYPTION_PASSWORD     = "Hohoho"
+        
+        /*
+        *   Hash settings
+        */
+        constant boolean APPLY_HASH             = true
+    endglobals
+
+    globals
+        Encoder array encoder       //these are used for encryption and decryption
+    endglobals
+    
+    private struct CoreInit extends array
+        /*
+        *   This method must be executed as encoders use synchronous natives
+        */
+        private static method init takes nothing returns nothing
+            local integer playerId
+            
+            /*
+            *   Encoder creation
+            */
+            if (ENCRYPTION_STRENGTH > 0) then
+                set playerId = 11
+                loop
+                    if (/*
+                            */GetPlayerSlotState(Player(playerId)) == PLAYER_SLOT_STATE_PLAYING and /*
+                            */GetPlayerController(Player(playerId)) == MAP_CONTROL_USER /*
+                        */) then
+                        
+                        /*
+                        *   The player name is used with the encryption password to make
+                        *   encryption both player unique and map unique
+                        *
+                        *   Encoder creation generates a cipher by applying MD5 to the
+                        *   player name + password
+                        */
+                        set encoder[playerId] = Encoder.create(GetPlayerName(Player(playerId)) + ENCRYPTION_PASSWORD)
+                    endif
+                
+                    exitwhen 0 == playerId
+                    set playerId = playerId - 1
+                endloop
+            endif
+        endmethod
+    
+        private static method onInit takes nothing returns nothing
+            call init.execute()
+        endmethod
+    endstruct
+endscope
+					[/jass][/center]
+					[color=#332c29]____________________________________________________________________________________________________[/color]
+				[/tab]
+				[tab=save]
+					[center][jass]
+/*
+*   Saving may be accomplished with one of two techniques.
+*
+*   Technique #1
+*
+*       A -save command may be used just like in traditional save/load. When
+*       the player types -save, their information is saved.
+*
+*   Technique #2
+*
+*       A timer can be used to save a player's information whenever it
+*       expires. This will mean that the player will not have to save
+*       information themselves and can leave the game freely. This is great
+*       if a player disconnects as they won't loes their information.
+*
+*       The danger in using a timer is that the player might leave the game
+*       while their code is being written to the file containing their
+*       information. When using periodic saving, you should alternate between
+*       two files so that if one file becomes corrupt due to a player leaving,
+*       the other file will still be ok. This problem can also occur with
+*       technique #1 when a player disconnects while their code is being written
+*       to a file.
+*
+*       The chances of a corrupt file are not at all rare. Save/Load is not
+*       instantaneous and actually occurs over a period of time.
+*
+*       The GUI version of save/load does not support alternating between two
+*       files for ultimate player safety. Nor will this vJASS demonstration.
+*       As such, someone may want to write up a GUI Save/Load system using
+*       the 3 systems of this map that does have file alternation.
+*
+*       For file alternation, a third file must be used to determine the last
+*       correctly saved file.
+*/
+
+scope Save
+    private struct Save extends array
+        private static method save takes integer playerId, SaveCode data returns nothing
+            /*
+            *   SaveCode essentially has 1 method for writing data
+            *
+            *       call data.write(integer)
+            *
+            *   So writing data to it is very simple. Any integer can be
+            *   written, negative or positive.
+            */
+            
+            call data.write(15)
+            call data.write(-24298)
+            call data.write(38395)
+        endmethod
+        
+        private static method saveComplete takes integer playerId returns nothing
+            call DisplayTimedTextToPlayer(Player(playerId),0,0,60000,"Save Complete")
+        endmethod
+
+        /*
+        *   Remember that a save is not instant. This will ensure that
+        *   a player does not save while a save is already in progress.
+        */
+        private static boolean array isSaving
+
+        /*
+        *   Notice that this is not a trigger condition, but rather a
+        *   trigger action. This is because synchronus natives will be
+        *   used.
+        */
+        private static method onSave takes nothing returns nothing
+            local integer playerId
+            local SaveCode data = 0
+            local Thread thread
+            
+            set playerId = GetPlayerId(GetTriggerPlayer())
+            
+            if (isSaving[playerId]) then
+                return
+            endif
+            set isSaving[playerId] = true
+            
+            /*
+            *   Threads are used for synchronization
+            *   In this case, the Thread is used to make the non saving players
+            *   wait until the saving player is finished saving
+            *
+            *   A thread will not be considered synchronized until all players in the game
+            *   have sent synchronization requests. Every player except for the saving
+            *   player will send a sync request with the following code.
+            */
+            set thread = Thread.create()
+            if (GetPlayerId(GetLocalPlayer()) != playerId) then
+                call thread.sync()
+            endif
+            
+            /*
+            *   This loop will continue until the player is finished saving
+            *   The loop exits when the thread is synchronized, and the saving player
+            *   does not sync the thread until that player has finished saving.
+            */
+            loop
+                if (GetPlayerId(GetLocalPlayer()) == playerId) then
+                    /*
+                    *   A save code is only created for the saving player
+                    */
+                    set data = SaveCode.create()
+                    
+                    /*
+                    *   create a save method outside of this area for cleaner code :)
+                    */
+                    call save(playerId, data)
+                    
+                    /*
+                    *   The player id is set to -1 here so that the player does not enter
+                    *   this area again
+                    */
+                    set playerId = -1
+                    call thread.sync()
+                endif
+                
+                /*
+                *   TriggerSyncReady is used here to prevent op limit + for short wait
+                *   It is a synchronous native
+                */
+                call TriggerSyncReady()
+                exitwhen thread.synced
+            endloop
+            set playerId = GetPlayerId(GetTriggerPlayer())
+            
+            /*
+            *   FormatBitInt is a major operation, thus an evaluation is used
+            *   It formats the save/load code to be in a multiple of 128 bits
+            *   This is necessary because the LoadFile command reads out 128
+            *   bits at a time. As such, it may end up reading out extra 0s, which
+            *   will end up breaking the decryption process.
+            */
+            call FormatBitInt.evaluate(data)
+            
+            /*
+            *   The hash is applied to the start of the code. Apply the hash before
+            *   encryption so that players will not have access to the hash.
+            *
+            *   The encryption goes from left to right (start to back). This means that
+            *   the hash, if the encryption strength is >= 2, will affect the rest of the
+            *   code. The hash is dependent on the rest of the code, so having a hash and
+            *   encryption strenght >= 2 will end up making the entire code look
+            *   completely different with tiny bit changes.
+            *
+            *   encryption and hashing have synchronous native calls in them, so *ALL*
+            *   players must call them or a desync will occur.
+            */
+            if (APPLY_HASH) then
+                call ApplyHash(data)
+            endif
+            call encoder[playerId].encrypt(data, ENCRYPTION_STRENGTH)
+            
+            /*
+            *   The second argument is the file name. For this, can just use the
+            *   playe's name. The file will only save for the saving player because
+            *   data == 0 for all of the other players.
+            *
+            *   SaveFile has synchronous native calls in it, so *ALL* players
+            *   must call it or a desync will occur.
+            */
+            call SaveFile(MAP_NAME, GetPlayerName(GetLocalPlayer()), data)
+            
+            /*
+            *   Destroy the save code
+            */
+            if (0 != data) then
+                call data.destroy()
+            endif
+            
+            /*
+            *   Allow the saving player to save again
+            */
+            set isSaving[playerId] = false
+            
+            /*
+            *   You may want to let the player know that the save was completed
+            *   This can be done with a multiboard, text tags, or even a game message
+            *
+            *   Remember that a code can become corrupt if a player leaves while they are
+            *   still saving, so letting them know when their save is complete is a must.
+            *   This is only true for the -save command. For periodic saving, it is not
+            *   important to let a player know when their save is complete.
+            */
+            call saveComplete(playerId)
+        endmethod
+
+        private static method onInit takes nothing returns nothing
+            local integer playerId = 11
+            local trigger t = CreateTrigger()
+            call TriggerAddAction(t, function thistype.onSave)
+            
+            /*
+            *   Registration of player -save command
+            */
+            loop
+                if (GetPlayerSlotState(Player(playerId)) == PLAYER_SLOT_STATE_PLAYING and GetPlayerController(Player(playerId)) == MAP_CONTROL_USER) then
+                    call TriggerRegisterPlayerChatEvent(t, Player(playerId), "-save", true)
+                endif
+                
+                exitwhen 0 == playerId
+                set playerId = playerId - 1
+            endloop
+            
+            set t = null
+        endmethod
+    endstruct
+endscope
+					[/jass][/center]
+					[color=#332c29]____________________________________________________________________________________________________[/color]
+				[/tab]
+				[tab=load]
+					[center][jass]
+/*
+*   Loading may either be done when the map starts (load up all data for
+*   a player) or done in 2 stages.
+*
+*       Stage 1
+*
+*           Load up the file containing the list of heroes
+*
+*                           Or
+*
+*           Wait until the player picks a hero
+*
+*       Stage 2
+*
+*           Load hero that player picked
+*
+*   For this demonstration, it will simply load up all data for a player.
+*
+*   If alternating files are used, any given hero will have three files
+*
+*       File 1: last *fully* saved file (used to pick code #1 or code #2)
+*       File 2: code #1
+*       File 3: code #2
+*
+*   For this demonstration, only 1 file will be used.
+*/
+
+scope Load
+    private struct Load extends array
+        private static method load takes LoadCode data returns nothing
+            /*
+            *   LoadCode contains 2 useful things
+            *
+            *       data.playerId
+            *           -   playerId refers to the loading player
+            *
+            *       data.read()
+            *           -   reads integer out of code in order that they were written
+            *           -   in
+            */
+            
+            /*
+            *   15
+            */
+            call DisplayTimedTextToPlayer(GetLocalPlayer(),0,0,60000,"Loaded: "+I2S(data.read()))
+            
+            /*
+            *   -24298
+            */
+            call DisplayTimedTextToPlayer(GetLocalPlayer(),0,0,60000,"Loaded: "+I2S(data.read()))
+            
+            /*
+            *   38395
+            */
+            call DisplayTimedTextToPlayer(GetLocalPlayer(),0,0,60000,"Loaded: "+I2S(data.read()))
+            
+            /*
+            *   0 (no data left)
+            *
+            *   BitInt(data).bitCount may or not be 0 though
+            */
+            call DisplayTimedTextToPlayer(GetLocalPlayer(),0,0,60000,"Loaded: "+I2S(data.read()))
+        endmethod
+        
+        /*
+        *   This method can be used to show the download progress for all players
+        *
+        *   Use multiboard, text tag, or game message
+        */
+        private static method updateProgress takes nothing returns nothing
+            local integer playerId = 11
+            
+            call ClearTextMessages()
+            loop
+                /*
+                *   If the player is not human, the load progress is -1, so only
+                *   display human load progress.
+                *
+                *   This can be useful for a progress multiboard as players with
+                *   -1 can be shown in red
+                *
+                *   Players < 100 can be shown in white
+                *   Players == 100 can be shown in green
+                */
+                if (GetLoadProgress(playerId) > -1) then
+                    call DisplayTimedTextToPlayer(GetLocalPlayer(),0,0,60000,"Download Progress For (" + GetPlayerName(Player(playerId)) + "): "+R2S(GetLoadProgress(playerId)) + "%")
+                endif
+                
+                exitwhen 0 == playerId
+                set playerId = playerId - 1
+            endloop
+        endmethod
+    
+        /*
+        *   This method is executed as it has synchronous calls
+        */
+        private static method onLoad takes nothing returns nothing
+            local LoadStream stream
+            local LoadCode data
+            local timer t
+            local boolean validated
+            
+            /*
+            *   Load the file
+            *
+            *   A timer is used to display download progress
+            */
+            set t = CreateTimer()
+            call TimerStart(t,.03125000,true,function thistype.updateProgress)
+            /*
+            *   Notice that LoadFile returns a LoadStream. A LoadStream essentially
+            *   contains all of the codes for all of the players for the given file.
+            */
+            set stream = LoadFile(MAP_NAME, GetPlayerName(GetLocalPlayer()))
+            call PauseTimer(t)
+            call DestroyTimer(t)
+            set t = null
+            
+            /*
+            *   If File.enabled is false, then the player is currently not able
+            *   to load files.
+            *
+            *   Let them know somehow how to enable loading.
+            *
+            *       Step 1. Go to C Drive
+            *       Step 2. Go to !! AllowLocalFiles folder
+            *       Step 3. Run AllowLocalFiles.bat
+            *       Step 4. Restart Warcraft 3
+            *
+            *   Even if a player doesn't have loading enabled, they will still have
+            *   saving enabled, so they do not have to restart Warcraft 3 until
+            *   they have finished their current game. Just let them know to restart
+            *   before joining another game.
+            *
+            *   A player will only ever have to run AllowLocalFiles.bat once per
+            *   machine.
+            *
+            *   I let them know via game messages here, but you might want to let
+            *   them know via a multiboard or quest
+            */
+            if (not File.enabled) then
+                call DisplayTimedTextToPlayer(GetLocalPlayer(),0,0,60000,"Loading is currently disabled for you")
+                call DisplayTimedTextToPlayer(GetLocalPlayer(),0,0,60000,"To enable loading")
+                call DisplayTimedTextToPlayer(GetLocalPlayer(),0,0,60000," ")
+                call DisplayTimedTextToPlayer(GetLocalPlayer(),0,0,60000,"1. Go to C Drive")
+                call DisplayTimedTextToPlayer(GetLocalPlayer(),0,0,60000,"2. Go to !! AllowLocalFiles folder")
+                call DisplayTimedTextToPlayer(GetLocalPlayer(),0,0,60000,"3. Run AllowLocalFiles.bat")
+                call DisplayTimedTextToPlayer(GetLocalPlayer(),0,0,60000,"4. Restart Warcraft 3")
+                call DisplayTimedTextToPlayer(GetLocalPlayer(),0,0,60000,"You do not have to restart Warcraft 3 until after this game. Saving is Enabled.")
+            endif
+            
+            /*
+            *   There is no need for a Thread here because all of the players
+            *   have the same data
+            */
+            loop
+                /*
+                *   Get the next code from the stream
+                *
+                *   If the code was 0, then there are no codes left in the stream
+                *
+                *   data.playerId gives the player that owns the code
+                */
+                set data = stream.read()
+                exitwhen 0 == data
+                
+                /*
+                *   First decrypt the code and then remove the hash if hashing
+                *   is used
+                */
+                call encoder[data.playerId].decrypt(data, ENCRYPTION_STRENGTH)
+                set validated = not APPLY_HASH or ValidateHash(data)
+                
+                if (validated) then
+                    /*
+                    *   If the code was valid, load it
+                    */
+                    call load(data)
+                else
+                    /*
+                    *   Load Failed, code is corrupt
+                    */
+                endif
+                
+                call data.destroy()
+                call TriggerSyncReady()
+            endloop
+            
+            call stream.destroy()
+        endmethod
+        
+        /*
+        *   Initialization is done in 3 stages
+        *
+        *       Stage 1
+        *           run a timer
+        *
+        *       Stage 2
+        *           execute
+        *
+        *       Stage 3
+        *           wait for the game to start (synchronous)
+        *
+        *           begin loading (loading must be done AFTER all players
+        *           have finished loading the map)
+        */
+        private static method init2 takes nothing returns nothing
+            call WaitForGameToStart()
+            call onLoad()
+        endmethod
+        private static method init takes nothing returns nothing
+            call DestroyTimer(GetExpiredTimer())
+            call init2.execute()
+        endmethod
+        private static method onInit takes nothing returns nothing
+            call TimerStart(CreateTimer(),0,false,function thistype.init)
+        endmethod
+    endstruct
+endscope
+					[/jass][/center]
+					[color=#332c29]____________________________________________________________________________________________________[/color]
+				[/tab]
+				[tab=architecture]
+					[center][jass]
+/*
+*   So far, only single version save/load has been discussed. Let's consider
+*   a map that starts with this information
+*
+*       hero
+*           xp
+*           strength
+*           agility
+*           intelligence
+*           life
+*           mana
+*           position (x, y, facing)
+*           inventory
+*               item 1
+*                   charges
+*               item 2
+*                   charges
+*               item 3
+*                   charges
+*               item 4
+*                   charges
+*               item 5
+*                   charges
+*               item 6
+*                   charges
+*
+*   Later, in version 2 of the map, the author decides to add a pet. They
+*   also decide to add a bank that can hold gear.
+*
+*       pet
+*           xp
+*           life
+*           mana
+*           position (x, y, facing)
+*
+*       bank
+*           item 1
+*               charges
+*           item 2
+*               charges
+*           item 3
+*               charges
+*           item 4
+*               charges
+*           item 5
+*               charges
+*           item 6
+*               charges
+*
+*   With single version save/load, this is impossible
+*
+*   Muti-Version save/load means to adopt this architecture
+*
+*       Saver
+*
+*       Loader Version 1
+*       Loader Version 2
+*       Loader Version 3
+*       Loader Version X (4+ etc)
+*
+*   Whenever the architecture of the code is changed, like new information
+*   is added, a new loader is added
+*
+*   The version of the code can be stored at the start of the code
+*
+*       call code.write(version)
+*
+*   Later, the version is read out of the code
+*
+*       version = code.read()
+*
+*   And the correct loader is executed
+*
+*       ExecuteFunc("Loader" + I2S(version))  //functions with
+*                                             //loader # on them
+*
+*                   or
+*
+*       call TriggerExecute(loaders[version]) //trigger array
+*
+*   This will allow a map to load up both old codes from previous map
+*   versions and new codes.
+*
+*   Only 1 saver is needed because the map should always save using the
+*   latest version. There is no purpose to saving codes with old map versions.
+*/
+					[/jass][/center]
+					[color=#332c29]____________________________________________________________________________________________________[/color]
+				[/tab]
+				[tab=compression]
+					[center][jass]
+/*
+*   To improve the speed of save/load and reduce size(allowing more data),
+*   traditional save/load compression techniques can still be utilized
+*
+*       Catalogs
+*       Lossy Compression
+*       Partial Sets
+*       Range shifting (when the max data is 31 bits)
+*
+*       See save/load with snippets for compression techniques
+*       and resources
+*
+*           hiveworkshop.com/forums/spells-569/save-load-snippets-v2-1-0-5-a-202714/?prev=mmr%3D6
+*
+*   When using these techniques, do not use SaveCode or LoadCode,
+*   use BitInt directly
+*
+*       data = BitInt.create()
+*       data.write(value, bitSize)
+*       data.read(bitSize)
+*           bitSize = GetBitSize(max size)
+*/
+					[/jass][/center]
+					[color=#332c29]____________________________________________________________________________________________________[/color]
+				[/tab]
+			[/tabs]
+			[color=#332c29]____________________________________________________________________________________________________[/color]
+			[/td]
+			[/otable][/center]
+			[/tab]
+			[tab=GUI Demonstration]
+			[center][otable]
+				[td][tabs]
+					[tab=readme]
+						Be sure to read all trigger comments in the GUI Triggers to understand how to
+						use this system
+
+						The demo provided is a simple save/load setup that can save infinite
+						units (unit, xp, health, mana, items, item charges)
+
+
+						Notes on Variables
+
+						SL_EncryptionStrength
+						[indent]
+							Set this to how strong you want the encryption to be. Encryption strength
+							goes from 0 to 16, 0 being no encryption and 16 being max encryption.
+							The encryption even at 1 is very strong, and stronger encryption means
+							that saving and loading will take longer (possible freezes depending on
+							data size). I personally recommend an encryption strength of 2. Anything
+							more is overkill.
+						[/indent]
+						SL_MapName
+						[indent]
+							Set this to the name of your map (or group of maps). This will save and
+							load data specific to your map.
+						[/indent]
+						SL_Password
+						[indent]
+							This is a map unique password for the encryption process. Be sure to set
+							this to a value. Both the player name and this password are used in
+							encryption, so the codes generated on the player's HDD are unique to a
+							specific account. There is no need to save a player's name in the code.
+							This will only be used if the encryption strength is greater than 0
+						[/indent]
+						SL_TamperProtection
+						[indent]
+							This ensures that the player can't randomly change the code on their HDD.
+							This is what validates* the code. The encryption is what makes the code
+							impossible to read. I recommend that you always have this on, even with
+							no encryption.
+						[/indent]
+						[color=#332c29]____________________________________________________________________________________________________[/color]
+					[/tab]
+					[tab=OnLoadProgressUpdate]
+					[center][otable]
+						[tr]
+							[indent]
+								This trigger will run whenever the download % complete is updated
+
+								I personally suggest using a multiboard or text tags for the download progress.
+
+								I do it here with text messages for simplicity.
+
+								The array that contains the download progress is SL_LoadProgress
+
+								This is an array of reals. The index it uses is JASS player ids, so 0 - 11. Player Id 0 == Player 1.
+							[/indent]
+							[color=#332c29]____________________________________________________________________________________________________[/color]
+						[/tr]
+						[tr]
+							[trigger]
+OnLoadProgressUpdate
+    Events
+        Game - SL_UpdateLoadProgress becomes Equal to 1.00
+    Conditions
+    Actions
+        Custom script:   call ClearTextMessages()
+        For each (Integer A) from 0 to 11, do (Actions)
+            Loop - Actions
+                If (All Conditions are True) then do (Then Actions) else do (Else Actions)
+                    If - Conditions
+                        SL_LoadProgress[(Integer A)] Greater than -1.00
+                    Then - Actions
+                        Game - Display to (All players) the text: ((Load Progress of  + (Name of (Player(((Integer A) + 1))))) + (:  + (String(SL_LoadProgress[(Integer A)]))))
+                    Else - Actions
+							[/trigger]
+							[color=#332c29]____________________________________________________________________________________________________[/color]
+						[/tr]
+					[/otable][/center]
+					[/tab]
+					[tab=OnLoad]
+					[center][otable]
+						[tr]
+							[indent]
+								OnLoad runs whenever a player is loaded.
+
+								SL_PlayerLoad is set to the JASS Player Id of the loading player (player id 0 == Player 1)
+
+								Players will auto load all information at the start of the map
+
+								The loaded information is stored into 1 of 3 arrays.
+
+								SL_LoadInteger - integer values
+								SL_LoadItem     - item type id values
+								SL_LoadUnit     - unit type id values
+
+								The load will only run if the player successfully loaded.
+								A player will not load in the event of loading being disabled, the player not having any save/load code, or the save/load code being invalid
+
+								The information contained in these 3 arrays is identical to the information that was written to them during saving
+
+								SL_LoadCount stores how many values have been saved.
+								The values range from 0 to SL_LoadCount - 1
+
+								By default, SL_LoadUnit and SL_LoadItem will be values of -1. If one of these values aren't -1, then an item or unit was saved. If they are both -1, an integer was saved.
+
+								Below, I use a variable called SL_LoadIterator in order to iterate from 0 to SL_LoadCount - 1
+								Notice that whenever I read a value, I increase SL_LoadIterator. At the end of the loop, I decrease it by 1 (since the loop itself increases by 1).
+							[/indent]
+							[color=#332c29]____________________________________________________________________________________________________[/color]
+						[/tr]
+						[tr]
+							[trigger]
+OnLoad
+    Events
+        Game - SL_PlayerLoad becomes Greater than or equal to 0.00
+    Conditions
+    Actions
+        Unit Group - Pick every unit in (Units in (Playable map area)) and do (Actions)
+            Loop - Actions
+                If (All Conditions are True) then do (Then Actions) else do (Else Actions)
+                    If - Conditions
+                        (Owner of (Picked unit)) Equal to (Player(((Integer(SL_PlayerLoad)) + 1)))
+                    Then - Actions
+                        Unit - Remove (Picked unit) from the game
+                    Else - Actions
+        Set SL_LoadIterator = SL_LoadCount
+        For each (Integer SL_LoadIterator) from 0 to (SL_LoadCount - 1), do (Actions)
+            Loop - Actions
+                -------- Load The Unit --------
+                Unit - Create 1 SL_Unit[SL_LoadIterator] for (Player(((Integer(SL_PlayerLoad)) + 1))) at ((Player(((Integer(SL_PlayerLoad)) + 1))) start location) facing Default building facing degrees
+                Set SL_LoadIterator = (SL_LoadIterator + 1)
+                -------- Load Unit Life --------
+                Unit - Set life of (Last created unit) to (Real(SL_Integer[SL_LoadIterator]))
+                Set SL_LoadIterator = (SL_LoadIterator + 1)
+                -------- If Unit Has Mana, Load Mana --------
+                If (All Conditions are True) then do (Then Actions) else do (Else Actions)
+                    If - Conditions
+                        (Max mana of (Last created unit)) Greater than 0.00
+                    Then - Actions
+                        Unit - Set mana of (Last created unit) to (Real(SL_Integer[SL_LoadIterator]))
+                        Set SL_LoadIterator = (SL_LoadIterator + 1)
+                    Else - Actions
+                -------- If Unit Is A Hero, Load XP --------
+                If (All Conditions are True) then do (Then Actions) else do (Else Actions)
+                    If - Conditions
+                        ((Last created unit) is A Hero) Equal to True
+                    Then - Actions
+                        Hero - Set (Last created unit) experience to SL_Integer[SL_LoadIterator], Hide level-up graphics
+                        Set SL_LoadIterator = (SL_LoadIterator + 1)
+                    Else - Actions
+                -------- If Unit Has An Inventory, Load Inventory --------
+                If (All Conditions are True) then do (Then Actions) else do (Else Actions)
+                    If - Conditions
+                        (Size of inventory for (Last created unit)) Greater than 0
+                    Then - Actions
+                        For each (Integer B) from 1 to (Size of inventory for (Last created unit)), do (Actions)
+                            Loop - Actions
+                                -------- If There Is An Item In Slot, Load Item + Charges --------
+                                If (All Conditions are True) then do (Then Actions) else do (Else Actions)
+                                    If - Conditions
+                                        SL_Integer[SL_LoadIterator] Greater than 0
+                                    Then - Actions
+                                        Item - Create SL_Item[SL_LoadIterator] at (Position of (Last created unit))
+                                        Set SL_LoadIterator = (SL_LoadIterator + 1)
+                                        Item - Set charges remaining in (Last created item) to SL_Integer[SL_LoadIterator]
+                                        Set SL_LoadIterator = (SL_LoadIterator + 1)
+                                        Hero - Give (Last created item) to (Last created unit)
+                                    Else - Actions
+                                        Set SL_LoadIterator = (SL_LoadIterator + 1)
+                    Else - Actions
+                -------- This Is Decreased By 1 As The Loop Increases It By 1 --------
+                Set SL_LoadIterator = (SL_LoadIterator - 1)
+							[/trigger]
+							[color=#332c29]____________________________________________________________________________________________________[/color]
+						[/tr]
+					[/otable][/center]
+					[/tab]
+					[tab=OnStartLoad]
+					[center][otable]
+						[tr]
+							[indent]
+								This is run when loading loading begins
+								This is useful for possibly displaying a multiboard or setting up text tags to display download % complete
+							[/indent]
+							[color=#332c29]____________________________________________________________________________________________________[/color]
+						[/tr]
+						[tr]
+							[trigger]
+OnStartLoad
+    Events
+        Game - SL_StartLoad becomes Equal to 1.00
+    Conditions
+    Actions
+        -------- Possible multiboard? --------
+							[/trigger]
+							[color=#332c29]____________________________________________________________________________________________________[/color]
+						[/tr]
+					[/otable][/center]
+					[/tab]
+					[tab=OnEndLoad]
+					[center][otable]
+						[tr]
+							[indent]
+								This is run when loading loading ends
+								This is useful for cleaning up text tags/multiboard or for clearing text messages on % download complete
+
+								This is also useful for displaying whether the user has loading enabled or not
+
+								If SL_LoadingEnabled is true, the user can load
+								If it's false, the user can't load
+
+								In order to enable loading in the event that they can't load
+								1. Go to C drive
+								2. Go to !! AllowLocalFiles folder (at the very top of the drive)
+								3. Run AllowLocalFiles.bat
+								4. Restart Warcraft 3
+
+								The user will only not have loading enabled. They will still be able to save.
+								If they don't have loading enabled, they should do steps 1-3 and then play the map normally. After the game ends, they should restart Warcraft 3 before joining another game.
+
+								This only ever has to be done 1 time for a machine. This also only works on Windows. By using this save/load system, your map will not be playable on macs, which isn't a big deal.
+
+								Be sure to display these steps somewhere for the user!!!!
+							[/indent]
+							[color=#332c29]____________________________________________________________________________________________________[/color]
+						[/tr]
+						[tr]
+							[trigger]
+OnEndLoad
+    Events
+        Game - SL_EndLoad becomes Equal to 1.00
+    Conditions
+    Actions
+        -------- Possible multiboard? --------
+        If (All Conditions are True) then do (Then Actions) else do (Else Actions)
+            If - Conditions
+                SL_LoadingEnabled Equal to False
+            Then - Actions
+                Game - Display to (All players) the text: You do not have loa...
+            Else - Actions
+                Game - Display to (All players) the text: Loading Complete
+							[/trigger]
+							[color=#332c29]____________________________________________________________________________________________________[/color]
+						[/tr]
+					[/otable][/center]
+					[/tab]
+					[tab=OnSave]
+					[center][otable]
+						[tr]
+							[indent]
+								Saving can either be done with a -save command or a periodic timer (periodic saving means no need for the player to save + can allow player trading w/o worry of players duplicating items)
+
+								Saving is not instant! If a player leaves during saving, they risk corrupting their save/load code.
+
+								Be sure to let the player know that they should only leave after successfully saving. A saved status should be displayed somewhere. In this demo, I just use a Save Completed message.
+
+								In this demo, I use a boolean SL_IsSaving so that players can't run the save command while they are already saving.
+
+								When saving an integer, save to SL_Integer.
+								When saving a unit, save to SL_Unit
+								When saving an item, save to SL_Item
+
+								Always increase SL_SaveCount by 1 after saving
+
+								Notice this line
+								(Triggering player) Equal to SL_LocalPlayer
+
+								This is done in an if statement above the actual saving. Saving is done for only 1 player, so you always need this if statement.
+
+								Furthermore
+								Wait 0.00 seconds
+
+								Because saving is only done for 1 player (meaning only run on that one player's machin), you need to give the player a chance to perform the save. The Wait 0 seconds gives them that chance.
+
+								At the end of the save
+								Set SL_Save = (Real(((Player number of (Triggering player)) - 1)))
+
+								You need to set SL_Save to the JASS Player Id of the saving player. This will actually execute the save.
+							[/indent]
+							[color=#332c29]____________________________________________________________________________________________________[/color]
+						[/tr]
+						[tr]
+							[trigger]
+OnSave
+    Events
+        Player - Player 1 (Red) types a chat message containing -save as An exact match
+        Player - Player 2 (Blue) types a chat message containing -save as An exact match
+        Player - Player 3 (Teal) types a chat message containing -save as An exact match
+        Player - Player 4 (Purple) types a chat message containing -save as An exact match
+        Player - Player 5 (Yellow) types a chat message containing -save as An exact match
+        Player - Player 6 (Orange) types a chat message containing -save as An exact match
+        Player - Player 7 (Green) types a chat message containing -save as An exact match
+        Player - Player 8 (Pink) types a chat message containing -save as An exact match
+        Player - Player 9 (Gray) types a chat message containing -save as An exact match
+        Player - Player 10 (Light Blue) types a chat message containing -save as An exact match
+        Player - Player 11 (Dark Green) types a chat message containing -save as An exact match
+        Player - Player 12 (Brown) types a chat message containing -save as An exact match
+    Conditions
+        SL_IsSaving[(Player number of (Triggering player))] Equal to False
+    Actions
+        Set SL_IsSaving[(Player number of (Triggering player))] = True
+        Unit Group - Pick every unit in (Units in (Playable map area)) and do (Actions)
+            Loop - Actions
+                If (All Conditions are True) then do (Then Actions) else do (Else Actions)
+                    If - Conditions
+                        (Owner of (Picked unit)) Equal to (Triggering player)
+                    Then - Actions
+                        If (All Conditions are True) then do (Then Actions) else do (Else Actions)
+                            If - Conditions
+                                (Triggering player) Equal to SL_LocalPlayer
+                            Then - Actions
+                                Set SL_Unit[SL_SaveCount] = (Unit-type of (Picked unit))
+                                Set SL_SaveCount = (SL_SaveCount + 1)
+                                Set SL_Integer[SL_SaveCount] = (Integer((Life of (Picked unit))))
+                                Set SL_SaveCount = (SL_SaveCount + 1)
+                                If (All Conditions are True) then do (Then Actions) else do (Else Actions)
+                                    If - Conditions
+                                        (Max mana of (Picked unit)) Greater than 0.00
+                                    Then - Actions
+                                        Set SL_Integer[SL_SaveCount] = (Integer((Mana of (Picked unit))))
+                                        Set SL_SaveCount = (SL_SaveCount + 1)
+                                    Else - Actions
+                                If (All Conditions are True) then do (Then Actions) else do (Else Actions)
+                                    If - Conditions
+                                        ((Picked unit) is A Hero) Equal to True
+                                    Then - Actions
+                                        Set SL_Integer[SL_SaveCount] = (Hero experience of (Picked unit))
+                                        Set SL_SaveCount = (SL_SaveCount + 1)
+                                    Else - Actions
+                                If (All Conditions are True) then do (Then Actions) else do (Else Actions)
+                                    If - Conditions
+                                        (Size of inventory for (Picked unit)) Greater than 0
+                                    Then - Actions
+                                        For each (Integer B) from 1 to (Size of inventory for (Picked unit)), do (Actions)
+                                            Loop - Actions
+                                                Set SL_Item[SL_SaveCount] = (Item-type of (Item carried by (Last Haunted Gold Mine) in slot (Integer B)))
+                                                Set SL_SaveCount = (SL_SaveCount + 1)
+                                                If (All Conditions are True) then do (Then Actions) else do (Else Actions)
+                                                    If - Conditions
+                                                        ((Picked unit) has (Item carried by (Picked unit) in slot (Integer B))) Equal to True
+                                                    Then - Actions
+                                                        Set SL_Integer[SL_SaveCount] = (Charges remaining in (Item carried by (Picked unit) in slot (Integer B)))
+                                                        Set SL_SaveCount = (SL_SaveCount + 1)
+                                                    Else - Actions
+                                    Else - Actions
+                            Else - Actions
+                    Else - Actions
+        Wait 0.00 seconds
+        Set SL_Save = (Real(((Player number of (Triggering player)) - 1)))
+							[/trigger]
+							[color=#332c29]____________________________________________________________________________________________________[/color]
+						[/tr]
+					[/otable][/center]
+					[/tab]
+					[tab=OnSaveComplete]
+					[center][otable]
+						[tr]
+							[indent]
+								This runs when saving is complete.
+
+								The value SL_OnSaveComplete is set to is the JASS Player Id of the saved player.
+
+								With this, you can display to that saved player that they have successfully finished saving and that it is now safe to leave the game.
+
+								You should also notice that I set SL_IsSaving to false here. This means that the player may now use the -save command again.
+								If doing periodic saving, the periodic save will now start saving for the player again.
+							[/indent]
+							[color=#332c29]____________________________________________________________________________________________________[/color]
+						[/tr]
+						[tr]
+							[trigger]
+OnSaveComplete
+    Events
+        Game - SL_OnSaveComplete becomes Greater than or equal to 0.00
+    Conditions
+    Actions
+        Set SL_IsSaving[(Integer(SL_OnSaveComplete))] = False
+        Game - Display to (Player group((Player(((Integer(SL_OnSaveComplete)) + 1))))) the text: Saving Complete
+        -------- Possibly let player know that their save is complete --------
+							[/trigger]
+							[color=#332c29]____________________________________________________________________________________________________[/color]
+						[/tr]
+					[/otable][/center]
+					[/tab]
+				[/tabs]
+				[color=#332c29]____________________________________________________________________________________________________[/color]
+				[/td]
+			[/otable][/center]
+			[/tab]
+		[/tabs][/center][/td]
+		[tdalt][/tdalt]
+	[/tr]
+
+	[tr]
+		[tdalt][/tdalt]
+		[td][indent][size=5][color=#d0f680][b]Additional Information[/b][/color][/size][/indent][/td]
+		[tdalt][/tdalt]
+	[/tr]
+	[tr]
+		[tdalt][/tdalt]
+		[td][center][tabs]
+			[tab=Change Log]
+				[center][tabs]
+					[tab=v1.0.1.1]
+					[center][otable][td]
+						[list]
+							[*]Added
+							[list]
+								[*]GUI Save/Load System with Multi-Version Support + Alternating File Protection
+								[*]GUI Demo using new GUI Save/Load System
+							[/list]
+						[/list]
+						[color=#332c29]____________________________________________________________________________________________________[/color]
+					[/td][/otable][/center]
+					[/tab]
+					[tab=Older Versions]
+					[center][otable]
+					[tr]
+						[list]
+							[*][hidden=v1.0.1.0]
+								[list]
+									[*]Added
+									[list]
+										[*]vJASS Demo of Multi-Version Save/Load
+										[*]vJASS Demo of Multi-Profile Save/Load
+										[*]vJASS Demo of Alternate File Save/Load Protection
+									[/list]
+								[/list]
+							[/hidden]
+							[*][hidden=v1.0.0.0]
+								[list]
+									[*]Initial Release
+								[/list]
+							[/hidden]
+						[/list]
+						[color=#332c29]____________________________________________________________________________________________________[/color]
+					[/tr]
+					[/otable][/center]
+					[/tab]
+				[/tabs][/center]
+			[/tab]
+			[tab=Author's Notes]
+			[center][otable]
+				[tr][tdalt][indent][b]Library Links[/b][/indent][/tdalt][/tr]
+				[tr]
+					[list]
+						[*][url="http://www.hiveworkshop.com/forums/jass-resources-412/snippet-alloc-alternative-221493/"]Alloc[/url]
+						[*][url="http://www.hiveworkshop.com/forums/jass-resources-412/snippet-worldbounds-180494/"]World Bounds[/url]
+						[*][url="http://www.hiveworkshop.com/forums/jass-resources-412/snippet-game-start-225310/"]Game Start[/url]
+						[*][url="http://www.hiveworkshop.com/forums/jass-resources-412/snippet-thread-218269/"]Thread[/url]
+						[*][url="http://www.hiveworkshop.com/forums/spells-569/network-v2-0-0-0-a-226065/?prev=mmr%3D6"]Network[/url]
+						[*][url="http://www.hiveworkshop.com/forums/spells-569/file-i-o-2-0-0-2-a-217403/?prev=mmr%3D6"]File IO[/url]
+						[*][url="http://www.hiveworkshop.com/forums/jass-resources-412/snippet-matrix128-226509/"]Matrix128[/url]
+						[*][url="http://www.hiveworkshop.com/forums/jass-resources-412/snippet-bitint-226174/"]BitInt[/url]
+						[*][url="http://www.hiveworkshop.com/forums/jass-resources-412/snippet-bit-manip-226117/"]BitManip[/url]
+						[*][url="http://www.hiveworkshop.com/forums/jass-resources-412/snippet-ltable-222643/"]ltable[/url]
+						[*][url="http://www.hiveworkshop.com/forums/jass-resources-412/snippet-rcon-222658/"]rcon[/url]
+						[*][url="http://www.hiveworkshop.com/forums/jass-resources-412/snippet-sbox-222638/"]sbox[/url]
+						[*][url="http://www.hiveworkshop.com/forums/jass-resources-412/snippet-bg-mult-222645/"]bg mult[/url]
+						[*][url="http://www.hiveworkshop.com/forums/jass-resources-412/snippet-etable-222644/"]etable[/url]
+						[*][url="http://www.hiveworkshop.com/forums/jass-resources-412/snippet-sub-byte-222641/"]sub byte[/url]
+						[*][url="http://www.hiveworkshop.com/forums/jass-resources-412/snippet-byte-xor-222642/"]xor[/url]
+						[*][url="http://www.hiveworkshop.com/forums/jass-resources-412/snippet-byte-not-225161/"]byte not[/url]
+						[*][url="http://www.hiveworkshop.com/forums/jass-resources-412/snippet-byte-222868/"]byte and[/url]
+						[*][url="http://www.hiveworkshop.com/forums/jass-resources-412/snippet-byte-222894/"]byte or[/url]
+						[*][url="http://www.hiveworkshop.com/forums/jass-resources-412/snippet-md5-226507/"]MD5[/url]
+						[*][url="http://www.hiveworkshop.com/forums/jass-resources-412/system-aes-222666/"]AES[/url]
+						[*][url="http://www.hiveworkshop.com/forums/jass-resources-412/snippet-ascii-190746/"]Ascii[/url]
+						[*][url="http://www.hiveworkshop.com/forums/jass-resources-412/system-unit-indexer-172090/"]Unit Indexer[/url] (extra)
+						[*][url="http://www.hiveworkshop.com/forums/jass-resources-412/snippet-event-186555/"]Event[/url] (extra)
+						[*]FormatBitInt (map)
+						[*]SaveCode (map)
+						[*]LoadCode (map)
+						[*]SaveFile (map)
+						[*]LoadFile (map)
+						[*]Encoder (map)
+						[*]CryptoHash (map)
+						[*]SaveLoadGUI (map)
+						[*]SaveLoadUnit (map)
+						[*]vJASS Save/Load System Demo (map)
+						[*]GUI Save/Load System Usage Demo (map)
+					[/list]
+					[color=#332c29]____________________________________________________________________________________________________[/color]
+				[/tr]
+
+				[tr][tdalt][indent][b]Known Issues[/b][/indent][/tdalt][/tr]
+				[tr]
+					[list]
+						[*]Leaks in GUI Demonstration As It Is Not Meant To Be Used Directly
+						[*]Windows machines only
+						[*]Units won't be able to receive orders until loading complete
+						[*]Running cinematic during loading will cause a desync
+					[/list]
+					[color=#332c29]____________________________________________________________________________________________________[/color]
+				[/tr]
+
+				[tr][tdalt][indent][b]Important Notes[/b][/indent][/tdalt][/tr]
+				[tr]
+					[list]
+						[*]A bat file must be run in order to enable loading (notes in map)
+						[*]The save/load system provided is meant to be used to craft map specific save/load systems
+						[*]The GUI Save/Load system is only meant for simple uses. For more complex uses, dangers outlined in vJASS tutorial should be fixed
+						[*]The GUI Save/Load system does not support multi profiling. To support it, another GUI save/load system needs to be written
+						[*]The GUI Save/Load system provided is not the be all and end all to GUI save/load systems, it is a very simple implementation. Other GUI save/load systems using the code in this map can and should be coded.
+					[/list]
+					[color=#332c29]____________________________________________________________________________________________________[/color]
+				[/tr]
+			[/otable][/center]
+			[/tab]
+			[tab=Credits]
+			[center][otable]
+				[tr][tdalt][indent][b]Ideas[/b][/indent][/tdalt][/tr]
+				[tr]
+					[list]
+						[*]None
+					[/list]
+				[/tr]
+
+				[tr][tdalt][indent][b]External Resources[/b][/indent][/tdalt][/tr]
+				[tr]
+					[list]
+						[*]Not32 by [url="http://www.hiveworkshop.com/forums/members/magtheridon96/"]Magtheridon96[/url]
+						[*]SubAnd by [url="http://www.hiveworkshop.com/forums/members/magtheridon96/"]Magtheridon96[/url]
+						[*]ByteAnd by [url="http://www.hiveworkshop.com/forums/members/magtheridon96/"]Magtheridon96[/url]
+						[*]And32 by [url="http://www.hiveworkshop.com/forums/members/magtheridon96/"]Magtheridon96[/url]
+						[*]SubOr by [url="http://www.hiveworkshop.com/forums/members/magtheridon96/"]Magtheridon96[/url]
+						[*]ByteOr by [url="http://www.hiveworkshop.com/forums/members/magtheridon96/"]Magtheridon96[/url]
+						[*]Or32 by [url="http://www.hiveworkshop.com/forums/members/magtheridon96/"]Magtheridon96[/url]
+					[/list]
+					[color=#332c29]____________________________________________________________________________________________________[/color]
+				[/tr]
+
+				[tr][tdalt][indent][b]Miscellaneous[/b][/indent][/tdalt][/tr]
+				[tr]
+					[list]
+						[*]Credits to [url="http://www.hiveworkshop.com/forums/members/dr+super+good/"]Dr Super Good[/url] for aiding in step 1 of Decoder getNextDataSet
+								[ljass]set dataSet = (remainingData/8 - 16) - (((remainingData/8 - 16)/AES_INTERVAL)*AES_INTERVAL)[/ljass]
+						[*]Credits to [url="http://www.hiveworkshop.com/forums/members/overcold_ice/"]overlord_ice[/url] for providing [url="http://www.hiveworkshop.com/forums/2240600-post11.html"]resource template[/url]
+						[*]Credits to [url="http://www.hiveworkshop.com/forums/members/miss_foxy/"]Miss_Foxy[/url] for providing feedback on how easy the GUI Demo was to understand + Running It
+						[*]Credits to [url="http://www.hiveworkshop.com/forums/members/radamantus/"]Radamantus[/url] for providing feedback on how easy the GUI Demo was to understand
+						[*]Credits to [url="http://www.hiveworkshop.com/forums/members/darkdread/"]Darkdread[/url] for providing feedback on how easy the GUI Demo and vJASS were to understand
+					[/list]
+					[color=#332c29]____________________________________________________________________________________________________[/color]
+				[/tr]
+			[/otable][/center]
+			[/tab]
+		[/tabs][/center][/td]
+		[tdalt][/tdalt]
+	[/tr]
+	[tr]
+		[tdalt][/tdalt]
+		[td][color=#332c29].[/color][/td]
+		[tdalt][/tdalt]
+	[/tr]
+[/otable]

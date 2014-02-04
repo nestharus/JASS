@@ -1,0 +1,86 @@
+This is a pack of resources that makes creating a high quality save/load system easy. It includes systems, snippets, tutorials, and demonstrations.
+
+[b]Requirements[/b]
+[indent]
+[url=http://www.hiveworkshop.com/forums/general-mapping-tutorials-278/setting-up-newgen-we-intro-trigger-editor-188349/]vJASS[/url]
+[/indent]
+
+[center][size=4]Do Not Forget To Go To The Scrambler Trigger To Setup A Password To Protect Your Code (SALT variable)[/size][/center]
+
+[center][size=5][url=http://www.hiveworkshop.com/forums/attachment.php?attachmentid=113126&stc=1&d=1334599901]Save/Load Interactive Tutorial[/url][/size][/center]
+[center][size=5][url=http://www.hiveworkshop.com/forums/spells.php?p=download&id=shtxzn&toast=258b6ac51244d75941203776de857937&dateline=1334599940]Save/Load With Snippets[/url][/size][/center]
+
+[b]General Resources Included[/b]
+[indent]
+BigInt
+Catalog
+Scrambler
+Base
+Ascii
+Table
+GetLearnedAbilities
+AVL Tree
+Unit Indexer
+Event
+WorldBounds
+ColorCodeString
+AddRepeatedString
+RemoveString
+SortedInventory
+[/indent]
+
+[b]Save/Load Resources Included[/b]
+[indent]
+SaveCodeToHD
+NumberStack
+KnuthChecksum
+Buffer
+SaveAbilities
+SaveStats
+SaveInventory
+SaveUnitLoc
+SaveUnitFacing
+SaveUnitLife
+SaveUnitMana
+SaveItemCharges
+EncryptNumber
+ApplyChecksum
+SaveXP
+InitSave
+CompressInt
+[/indent]
+
+[b]Catalog Tools (including working demonstration of each one)[/b]
+[indent]
+VersionFilter
+GroupVersionFilter
+LevelVersionFilter
+LevelGroupVersionFilter
+LevelGroupSlotVersionFilter
+Ability Catalog
+Hero Catalog
+[/indent]
+
+[b]Detailed Save/Load System Demonstrations[/b]
+[indent]
+Simple Save/Load
+Backwards Compatible Save/Load Codes
+[/indent]
+
+[b]Tutorials[/b]
+[indent]
+Saving An Inventory
+Saving Item Charges
+Saving Hero
+Saving Multiple Units
+The Architecture of Save/Load
+The Architecture of Versioned Save/Load
+Saving Infinite Unique Units
+Saving Player Resources
+Conditional Saving
+Saving Partial Slotted Inventories
+[/indent]
+
+[hidden="keywords"]
+save load save load save load save load save load save load save load save load save load save load save load save load save load save load save load save load save load save load save load save load save load save load save load save load save load save load save load save load save load save load save load save load save load save load save load save load save load save load save load save load save load save load save load save load save load save load save load save load save load save load save load save load save load save load save load save load save load save load save load save load save load save load save load save load save load save load save load save load save load save load save load save load save load save load save load save load save load save load save load save load save load save load save load save load save load save load 
+[/hidden]

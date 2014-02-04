@@ -1,0 +1,34 @@
+[hidden="Week 0: Setting up NewGen"]
+[b]Getting NewGen[/b]
+[indent]
+[url]http://www.hiveworkshop.com/forums/warcraft-editing-tools-277/jass-newgen-pack-2-0-alpha-recruiting-testing-233145/[/url]
+[youtube]http://youtu.be/W3VloUHKjq8[/youtube]
+[/indent]
+
+[b]Common Errors[/b]
+[indent]
+File Exist Error:
+[indent]
+Not Windows 8: start, run, %temp%, delete everything
+Windows 8: Right click dashboard area in bottom left corner, click on run, type %temp%, delete everything
+[/indent]
+[/indent]
+
+[b]Setting Up NewGen[/b]
+[indent]
+[youtube]http://youtu.be/BJqapu10fRY[/youtube]
+[/indent]
+[/hidden]
+
+[table]
+Week 1[c]Nestharus[c][url="http://www.hiveworkshop.com/forums/attachment.php?attachmentid=130685&stc=1&d=1384391781"]Map[/url][r]
+Week 2[c]Nestharus, Contributions from Magtheridon96[c][r]
+Week 3[c][c][r]
+Week 4[c][c][r]
+Week 5[c][c][r]
+Week 6[c][c][r]
+Week 7[c][c][r]
+Week 8[c][c][r]
+Week 9[c][c][r]
+Week 10[c][c]
+[/table]

@@ -1,0 +1,53 @@
+This will tutorial goes over how to create an interface with a module.
+
+When people create interfaces, they typically use function interfaces, interfaces, or if they are cool, plain old triggers. There is a way to create an interface for a struct without having to rely on dynamic code by cleverly using static ifs.
+
+Let's say that when an event occurs in the root struct, like a unit is indexed or a player types a chat message, it calls certain methods within the derived structs. These methods are normally called via stub methods and extension, function interfaces, or plain interfaces, but they can be called by using triggers and static ifs or by a direct method call in some cases (TimerQueue for example).
+
+[jass]
+struct ParentStruct extends array
+    private static trigger eventTrig = CreateTrigger()
+    private static trigger fireTrig = CreateTrigger()
+    static readonly thistype data = 0
+
+    private static method onEvent takes nothing returns boolean
+        local integer prevData = data
+        set data = 5 //event data
+        call TriggerEvaluate(fireTrig)
+        set data = prevData
+    endmethod
+
+    private static method onInit takes nothing returns nothing
+        call TriggerAddCondition(eventTrig, Condition(function thistype.onEvent))
+    endmethod
+
+    static method register takes boolexpr bc returns nothing
+        call TriggerAddCondition(fireTrig, bc)
+    endmethod
+endstruct
+
+module Mod
+    static if thistype.fire.exists then
+        private static method firerer takes nothing returns boolean
+            call thistype(ParentStruct.data).fire()
+            return false
+        endmethod
+
+        private static method onInit takes nothing returns nothing
+            call ParentStruct.register(Condition(function thistype.firerer))
+        endmethod
+    endif
+endmodule
+[/jass]
+
+And a struct
+[jass]
+struct Bleh extends array
+    private method fire takes nothing returns nothing
+    endmethod
+
+    implement Mod
+endstruct
+[/jass]
+
+The trigger evaluation is not necessarily needed in all cases as sometimes the events may be run directly within the struct.

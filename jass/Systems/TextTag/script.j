@@ -1,3 +1,4 @@
+[jass]
 library TextTag /* v2.0.0.7
 *************************************************************************************
 *
@@ -623,3 +624,4 @@ library TextTag /* v2.0.0.7
         endmethod
     endstruct
 endlibrary
+[/jass]

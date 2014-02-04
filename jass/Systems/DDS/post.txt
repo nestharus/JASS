@@ -1,0 +1,1011 @@
+[center][size=6][point]Index[/point][b]Index[/b][/size]
+____________________________________________________________________________________________________
+[/center]
+[size=4][indent][indent][indent][indent][indent][indent][indent]
+[goto=Plugin Creation]Plugin Creation[/goto] [indent]- [size=2][i]Read About How To Develop Custom Plugins[/i][/size][/indent]
+[goto=Framework]Framework[/goto] [indent]- [size=2][i]Get The Framework[/i][/size][/indent]
+[goto=Examples]Examples[/goto] [indent]- [size=2][i]See It In Action Here[/i][/size][/indent]
+[goto=Templates]Templates[/goto] [indent]- [size=2][i]Learn About Tools For Developing Custom Plugins Quickly and Easily[/i][/size][/indent]
+[goto=Reviews]Reviews[/goto] [indent]- [size=2][i]Read What Other People Think After Giving It A Try[/i][/size][/indent]
+[url=http://www.hiveworkshop.com/forums/2300716-post2.html]Nestharus Plugin Install Pack[/url] [indent]- [size=2][i]The Easiest Way To Get All Plugins By Nestharus[/i][/size][/indent][/indent][/indent][/indent][/indent][/indent][/indent][/indent]
+[center][/size]____________________________________________________________________________________________________[size=4]
+
+[goto=end]End Of Post[/goto][/center][/size]
+
+[point]Plugin Creation[/point][goto=Index]Index[/goto][otable]
+	[tr]
+		[titletd][/titletd]
+		[titletd][size=6][color=#ccaa00]DDS - The Next Generation[/color][/size][/titletd]
+		[titletd]
+		[size=2][color=#60a600][right]	v1.0.0.0
+										Nestharus[/right][/color][/size]
+		[/titletd]
+	[/tr]
+	[tr]
+		[tdalt][size=5][color=#222222]__[/color][/size][/tdalt]
+		[td]
+[color=#332c29]____________________________________________________________________________________________________[/color]
+			[size=5]A Plugin DDS Framework[/size]
+			[color=#332c29]____________________________________________________________________________________________________[/color]
+		[/td]
+		[tdalt][/tdalt]
+		[tr]
+			[tdalt][/tdalt]
+			[otable]
+				[tr]
+					[td]
+						[indent][size=5][color=#d0f680][b]Supports[/b][/color][/size][/indent]
+						[color=#332c29]____________________________________________________________________________________________________[/color]
+					[/td]
+					[tr][otable]
+						[tr]
+							[td]
+								Damage Event Core
+								[color=#332c29]_____________________________[/color]
+							[/td]
+							[td]
+								The simplest and lightest damage event possible
+								[color=#332c29]_______________________________________________________________________[/color]
+							[/td]
+						[/tr]
+						[tr]
+							[td]
+								Damage Event Modification
+							[/td]
+							[td]
+								Damage modification general, use of timers and health ability
+							[/td]
+						[/tr]
+						[tr]
+							[td]
+								Damage Event Archetype
+							[/td]
+							[td]
+								Able to differentiate between
+								[list]
+									[*]Physical
+									[*]Spell
+									[*]Code
+								[/list]
+								
+								Uses the spell damage reduction ability
+							[/td]
+						[/tr]
+						[tr]
+							[td]
+								Damage Event Unit Modification
+							[/td]
+							[td]
+								Unit specific damage modification
+							[/td]
+						[/tr]
+					[/otable][/tr]
+				[/tr]
+				[tr]
+					[td][indent][size=5][color=#d0f680][b]How To Create A Plugin[/b][/color][/size][/indent][/td]
+					[tr][otable]
+						[td]
+							Create the modules/macros (all optional)
+							Use DDS and any other required plugins
+							Users now may use your plugin and automatically use DDS as well as any other plugins all through a common API
+							[color=#332c29]____________________________________________________________________________________________________[/color]
+						[/td]
+					[/otable][/tr]
+				[/tr]
+				[tr]
+					[td][indent][size=5][color=#d0f680][b]Plugin Name Format[/b][/color][/size][/indent][/td]
+					[tr][otable]
+						[td]
+							PLUGIN_POSITION
+							
+							Example
+							[indent]
+								[ljass]//! textmacro DAMAGE_EVENT_CODE[/ljass]
+								[ljass]module DAMAGE_EVENT_API[/ljass]
+							[/indent]
+							[color=#332c29]____________________________________________________________________________________________________[/color]
+						[/td]
+					[/otable][/tr]
+				[/tr]
+				[tr]
+					[td][indent][size=5][color=#d0f680][b]Plugin Position Information[/b][/color][/size][/indent][/td]
+					[tr][otable]
+						[tr]
+							[td]
+								[ljass]//! textmacro CODE[/ljass]
+								[color=#332c29]___________________________[/color]
+							[/td]
+							[td]
+								Plugs code above the DDS struct
+								Place module declarations and general code here
+								Keep things private that shouldn't be part of the API
+								Keep things scoped for plugin (make use of scopes and private structs)
+								[color=#332c29]_________________________________________________________________________[/color]
+							[/td]
+						[/tr]
+						[tr]
+							[td]
+								[ljass]module API[/ljass]
+							[/td]
+							[td]
+								Plugs code into the DDS struct above the onDamage function
+								
+								Can either use a delegate to take properties from a struct or put the properties
+								directly into the module. Use whichever promotes readability.
+							[/td]
+						[/tr]
+						[tr]
+							[td]
+								[ljass]module RESPONSE_LOCALS[/ljass]
+							[/td]
+							[td]
+								Plugs code into the start of the onDamage function (for locals)
+							[/td]
+						[/tr]
+						[tr]
+							[td]
+								[ljass]module RESPONSE_BEFORE[/ljass]
+							[/td]
+							[td]
+								Plugs code into the onDamage function before user events are fired
+							[/td]
+						[/tr]
+						[tr]
+							[td]
+								[ljass]module RESPONSE[/ljass]
+							[/td]
+							[td]
+								Plugs code into the onDamage function when user events are fired
+							[/td]
+						[/tr]
+						[tr]
+							[td]
+								[ljass]module RESPONSE_AFTER[/ljass]
+							[/td]
+							[td]
+								Plugs code into the onDamage function after user events are fired
+							[/td]
+						[/tr]
+						[tr]
+							[td]
+								[ljass]module RESPONSE_CLEANUP[/ljass]
+							[/td]
+							[td]
+								Plugs code into the end of the onDamage function
+							[/td]
+						[/tr]
+						[tr]
+							[td]
+								[ljass]module INTERFACE[/ljass]
+							[/td]
+							[td]
+								Plugs code into the DDS module
+								Implemented into a struct, not a method
+							[/td]
+						[/tr]
+						[tr]
+							[td]
+								[ljass]module INIT[/ljass]
+							[/td]
+							[td]
+								Implemented at bottom of library
+								Put all init code here
+								Implemented into a method
+							[/td]
+						[/tr]
+					[/otable][/tr]
+				[/tr]
+				[tr]
+					[td][indent][size=5][color=#d0f680][b]Advantage[/b][/color][/size][/indent][/td]
+					[tr][otable]
+						[td]
+							Plugin properties and methods go through a common DDS struct
+							[color=#332c29]____________________________________________________________________________________________________[/color]
+						[/td]
+					[/otable][/tr]
+				[/tr]
+				[tr]
+					[td][indent][size=5][color=#d0f680][b]Common API Suggestion[/b][/color][/size][/indent][/td]
+					[tr][otable]
+						[tr][td]
+							Why follow a common API? It allows plugins to work with any other plugin regardless of the API and allows users to pick whichever plugin they want without having to modify their code. Of course, common API guidelines don't need to be followed, but at the very least, the Damage Event and Damage Event Advanced guidelines should be followed as they follow closely to the JASS Standard.
+							[color=#332c29]____________________________________________________________________________________________________[/color]
+						[/td][/tr]
+						[tr][td]
+							[tabs]
+								[tab=Damage Event]
+									[list]
+										[*]source - damager (readonly)
+										[*]target - damaged (readonly)
+										[*]damage - amount of damage (readonly)
+										[*] enabled - enable/disable DDS
+										[*]ANY - the event if the module is not used (readonly)
+									[/list]
+									[color=#332c29]____________________________________________________________________________________________________[/color]
+								[/tab]
+								[tab=Damage Event Modification]
+									[list]
+										[*]damageOriginal - original damage (readonly)
+										[*]damage - extend damage for set
+									[/list]
+									[color=#332c29]____________________________________________________________________________________________________[/color]
+								[/tab]
+								[tab=Damage Event Archetype]
+									[list]
+										[*]Archetype.SPELL
+										[*]Archetype.PHYSICAL
+										[*]Archetype.CODE
+										[*]archetype
+										[*]damageCode
+									[/list]
+									[color=#332c29]____________________________________________________________________________________________________[/color]
+								[/tab]
+								[tab=Damage Event Unit Modification]
+									See Damage Modification Effect and Damage Queue for possible implementations of this.
+								[/tab]
+								[color=#332c29]____________________________________________________________________________________________________[/color]
+							[/tabs]
+						[/tr][/td]
+					[/otable][/tr]
+				[/tr]
+			[/otable]
+			[tdalt][/tdalt]
+		[/tr]
+	[/tr]
+[/otable]
+[point]Framework[/point][goto=Index]Index[/goto]
+
+[jass]
+library DDS /* v1.0.1.0
+*************************************************************************************
+*
+*   */uses/*
+*
+*       */ TriggerRefresh   /*      hiveworkshop.com/forums/submissions-414/trigger-refresh-systems-using-single-unit-events-like-dds-231167/
+*
+************************************************************************************
+*
+*   SETTINGS
+*/
+globals
+    /*************************************************************************************
+    *
+    *   How many units can refresh at a given moment (when a trigger is rebuilt).
+    *   larger size means less triggers but harder refreshes.
+    *
+    *************************************************************************************/
+    private constant integer TRIGGER_SIZE = 80
+endglobals
+/*
+*************************************************************************************
+*
+*   struct DDS extends array
+*
+*       Plugin properties
+*
+*   module DDS
+*
+*       Plugin interface
+*       Plugin properties (from DDS struct)
+*
+*   Standard Methods (can be overwritten)
+*
+*       boolean enabled
+*
+*           - enables and disables the system for a given unit
+*
+*               DDS[unit index].enabled = true
+*
+*************************************************************************************/
+    private keyword Trigger
+    
+    private keyword DAMAGE_EVENT_API
+    private keyword DAMAGE_EVENT_MODIFICATION_API
+    private keyword DAMAGE_EVENT_ARCHETYPE_API
+    private keyword DAMAGE_EVENT_UNIT_MODIFICATION_API
+    private keyword DAMAGE_EVENT_RESPONSE_LOCALS
+    private keyword DAMAGE_EVENT_MODIFICATION_RESPONSE_LOCALS
+    private keyword DAMAGE_EVENT_ARCHETYPE_RESPONSE_LOCALS
+    private keyword DAMAGE_EVENT_UNIT_MODIFICATION_RESPONSE_LOCALS
+    private keyword DAMAGE_EVENT_RESPONSE_BEFORE
+    private keyword DAMAGE_EVENT_MODIFICATION_RESPONSE_BEFORE
+    private keyword DAMAGE_EVENT_ARCHETYPE_RESPONSE_BEFORE
+    private keyword DAMAGE_EVENT_UNIT_MODIFICATION_RESPONSE_BEFORE
+    private keyword DAMAGE_EVENT_RESPONSE
+    private keyword DAMAGE_EVENT_MODIFICATION_RESPONSE
+    private keyword DAMAGE_EVENT_ARCHETYPE_RESPONSE
+    private keyword DAMAGE_EVENT_UNIT_MODIFICATION_RESPONSE
+    private keyword DAMAGE_EVENT_RESPONSE_AFTER
+    private keyword DAMAGE_EVENT_MODIFICATION_RESPONSE_AFTER
+    private keyword DAMAGE_EVENT_ARCHETYPE_RESPONSE_AFTER
+    private keyword DAMAGE_EVENT_UNIT_MODIFICATION_RESPONSE_AFTER
+    private keyword DAMAGE_EVENT_RESPONSE_CLEANUP
+    private keyword DAMAGE_EVENT_MODIFICATION_RESPONSE_CLEANUP
+    private keyword DAMAGE_EVENT_ARCHETYPE_RESPONSE_CLEANUP
+    private keyword DAMAGE_EVENT_UNIT_MODIFICATION_RESPONSE_CLEANUP
+    private keyword DAMAGE_EVENT_INTERFACE
+    private keyword DAMAGE_EVENT_MODIFICATION_INTERFACE
+    private keyword DAMAGE_EVENT_ARCHETYPE_INTERFACE
+    private keyword DAMAGE_EVENT_UNIT_MODIFICATION_INTERFACE
+    private keyword DAMAGE_EVENT_INIT
+    private keyword DAMAGE_EVENT_MODIFICATION_INIT
+    private keyword DAMAGE_EVENT_ARCHETYPE_INIT
+    private keyword DAMAGE_EVENT_UNIT_MODIFICATION_INIT
+
+    //! runtextmacro optional DAMAGE_EVENT_CODE()
+    //! runtextmacro optional DAMAGE_EVENT_MODIFICATION_CODE()
+    //! runtextmacro optional DAMAGE_EVENT_ARCHETYPE_CODE()
+    //! runtextmacro optional DAMAGE_EVENT_UNIT_MODIFICATION_CODE()
+    
+    private keyword DDS_onDamage
+    struct DDS extends array
+        method operator enabled takes nothing returns boolean
+            return IsTriggerEnabled(Trigger(this).parent.trigger)
+        endmethod
+        static if not ENABLED_EXISTS then
+            method operator enabled= takes boolean b returns nothing
+                if (b) then
+                    call EnableTrigger(Trigger(this).parent.trigger)
+                else
+                    call DisableTrigger(Trigger(this).parent.trigger)
+                endif
+            endmethod
+        else
+            implement optional DAMAGE_EVENT_ENABLE
+        endif
+    
+        implement optional DAMAGE_EVENT_API
+        implement optional DAMAGE_EVENT_MODIFICATION_API
+        implement optional DAMAGE_EVENT_ARCHETYPE_API
+        implement optional DAMAGE_EVENT_UNIT_MODIFICATION_API
+    
+        static method DDS_onDamage takes nothing returns nothing
+            implement optional DAMAGE_EVENT_RESPONSE_LOCALS
+            implement optional DAMAGE_EVENT_MODIFICATION_RESPONSE_LOCALS
+            implement optional DAMAGE_EVENT_ARCHETYPE_RESPONSE_LOCALS
+            implement optional DAMAGE_EVENT_UNIT_MODIFICATION_RESPONSE_LOCALS
+            
+            implement optional DAMAGE_EVENT_RESPONSE_BEFORE
+            implement optional DAMAGE_EVENT_MODIFICATION_RESPONSE_BEFORE
+            implement optional DAMAGE_EVENT_ARCHETYPE_RESPONSE_BEFORE
+            implement optional DAMAGE_EVENT_UNIT_MODIFICATION_RESPONSE_BEFORE
+            
+            implement optional DAMAGE_EVENT_RESPONSE
+            implement optional DAMAGE_EVENT_MODIFICATION_RESPONSE
+            implement optional DAMAGE_EVENT_ARCHETYPE_RESPONSE
+            implement optional DAMAGE_EVENT_UNIT_MODIFICATION_RESPONSE
+            
+            implement optional DAMAGE_EVENT_RESPONSE_AFTER
+            implement optional DAMAGE_EVENT_MODIFICATION_RESPONSE_AFTER
+            implement optional DAMAGE_EVENT_ARCHETYPE_RESPONSE_AFTER
+            implement optional DAMAGE_EVENT_UNIT_MODIFICATION_RESPONSE_AFTER
+            
+            implement optional DAMAGE_EVENT_RESPONSE_CLEANUP
+            implement optional DAMAGE_EVENT_MODIFICATION_RESPONSE_CLEANUP
+            implement optional DAMAGE_EVENT_ARCHETYPE_RESPONSE_CLEANUP
+            implement optional DAMAGE_EVENT_UNIT_MODIFICATION_RESPONSE_CLEANUP
+        endmethod
+    endstruct
+    
+    module DDS
+        private static delegate DDS dds = 0
+        
+        implement optional DAMAGE_EVENT_INTERFACE
+        implement optional DAMAGE_EVENT_MODIFICATION_INTERFACE
+        implement optional DAMAGE_EVENT_ARCHETYPE_INTERFACE
+        implement optional DAMAGE_EVENT_UNIT_MODIFICATION_INTERFACE
+    endmodule
+
+    //! runtextmacro TRIGGER_REFRESH("TRIGGER_SIZE", "EVENT_UNIT_DAMAGED", "function DDS.DDS_onDamage")
+    
+    private module DDS_Init_Module
+        private static method onInit takes nothing returns nothing
+            implement optional DAMAGE_EVENT_INIT
+            implement optional DAMAGE_EVENT_MODIFICATION_INIT
+            implement optional DAMAGE_EVENT_ARCHETYPE_INIT
+            implement optional DAMAGE_EVENT_UNIT_MODIFICATION_INIT
+        endmethod
+    endmodule
+    private struct DDS_Init extends array
+        implement DDS_Init_Module
+    endstruct
+endlibrary
+[/jass]
+[point]Examples[/point][goto=Index]Index[/goto]
+
+[b]DDS Nestharus Plugin Example[/b]
+[jass]
+/*
+*   DDS is a framework that supports four plugins
+*
+*       Damage Detection
+*       Damage Modification
+*       Damage Type Detection (called archetype)
+*       Damage Unit Modification (specific units, can be a combat system for a map)
+*
+*   All four plugins run through the DDS module and will automatically add their things to that
+*   module.
+*/
+
+struct API_Demonstration extends array
+    /*
+    *   This is the priority field. It is *optional*. It is a part of
+    *   Damage Detection. A higher priority will run first.
+    */
+    private static constant integer PRIORITY = 5
+    
+    /*
+    *   This is called whenever a unit takes damage
+    */
+    private static method onDamage takes nothing returns nothing
+        /*
+        *   Increase the damage by 19
+        */
+        set damage = damage + 19
+        
+        /*
+        *   The archetype is the base type of damage
+        *       Physical: from regular attacks
+        *       Spell: from spells that are cast (not magic damage, that's physical)
+        *       Code: more later
+        */
+        if (archetype == Archetype.PHYSICAL) then
+            /*
+            *   When damageCode is set to a unit id, the next call to UnitDamageTarget is treated as code damage
+            *   With this, it is possible to run physical, spell, and code damage from UnitDamageTarget.
+            */
+            
+            /*
+            *   sourceId is the unit index of the unit that dealt damage
+            */
+            set damageCode = sourceId
+            
+            /*
+            *   damageOriginal is the original damage, or GetEventDamage(). Keep in mind that GetEventDamage() will
+            *   return incorrect values when the Archetype plugin is used, so always use damageOriginal.
+            */
+            
+            /*
+            *   target is the unit taking damage
+            *   source is the unit dealing damage
+            */
+            call UnitDamageTarget(target, source, damageOriginal/2, true, false, null, DAMAGE_TYPE_UNIVERSAL, null)
+        elseif (archetype == Archetype.SPELL) then
+            /*
+            *   Damage modified amount is how much the damage was changed
+            *   In this case, it is 19
+            *   After this is run, it becomes 38
+            */
+            set damage = damage + damageModifiedAmount
+        elseif (archetype == Archetype.CODE) then
+            /*
+            *   Life is how much life the target unit currently has. GetWidgetLife may return incorrect values, so use
+            *   this instead.
+            */
+            set damage = life/2
+        endif
+        /*
+        *   This disables DDS for the damaged unit, meaning that UnitDamageTarget will not run through
+        *   DDS
+        */
+        set DDS[targetId].enabled = false
+        
+        /*
+        *   The following will not run through DDS
+        */
+        call UnitDamageTarget(source, target, 1, true, false, null, DAMAGE_TYPE_UNIVERSAL, null)
+        
+        set DDS[targetId].enabled = true
+        
+        /*
+        *   Damage can be negative, 0, or whatever
+        *
+        *   0 would cancel all damage
+        *   A negative number would heal the unit
+        */
+        set damage = -50
+        
+        call DisplayTimedTextToPlayer(GetLocalPlayer(), 0, 0, 60000, GetUnitName(source) + " damaged " + GetUnitName(target) + " for " + R2S(damage) + " damage")
+    endmethod
+    
+    /*
+    *   Implement the DDS module at the bottom of the struct
+    */
+    implement DDS
+endstruct
+[/jass]
+
+[b]Custom Plugin Example Using Damage Event Template[/b]
+[jass]
+library MyCustomDamageEventPlugin uses DDS, PriorityEvent
+	//the code macro is where to put all of the plugin code
+    //! textmacro DAMAGE_EVENT_CODE
+
+	//use a scope to keep stuff only accessible to your plugin
+	//use private keywords inside of scope to open access to only your plugin
+	//use private keywords outside of scope to open access only to plugins
+	//no private keywords opens access to users
+	scope MyCustomDamageEventPlugin
+		//this is the API that the user will see
+		//the API will appear in both the DDS struct and in the DDS module
+        /*
+        *   DDS API
+        *
+        *       DDS.ANY
+        *		DDS.target
+        *       DDS.source
+        *       DDS.amount
+        *
+        */
+		//this keyword makes the init method only visible to this plugin
+        private keyword damageEventInit
+
+		//this is where the API goes that the user will see
+		//readonly variables can be set within the RESPONSE modules by any plugin
+		//to make it only for this plugin, use method operators and make the variables private
+        module DAMAGE_EVENT_API
+            readonly static PriorityEvent ANY
+            readonly static UnitIndex target = 0
+            readonly static UnitIndex source = 0
+            readonly static real amount = 0
+
+            static method damageEventInit takes nothing returns nothing
+                set ANY = PriorityEvent.create()
+            endmethod
+        endmodule
+        module DAMAGE_EVENT_INIT
+            call DDS.damageEventInit()
+        endmodule
+
+		//the interface pops up in the DDS module
+		//this interface creates an optional PRIORITY variable and an optional onDamage method
+        /*
+        *   DDS Interface
+        *
+        *       (optional) private static constant ineger PRIORITY          defaults 0
+        *       (optional) private static method onDamage takes nothing     defaults nothing
+        *
+        *       
+        */
+        private struct DamageEventPriority extends array
+            readonly static constant integer PRIORITY = 0
+        endstruct
+        module DAMAGE_EVENT_INTERFACE
+			//delegate makes the PRIORITY variable optional
+			//defaults at value 0
+            private static delegate DamageEventPriority priority = 0
+
+			//static if here makes the onDamage method optional
+            static if thistype.onDamage.exists then
+                private static method init takes code c returns nothing
+                    call ANY.register(Condition(c), PRIORITY)
+                    return
+                endmethod
+
+                private static method onInit takes nothing returns nothing
+                    call init(function thistype.onDamage)
+                endmethod
+            endif
+        endmodule
+
+		//this is where the damage event handling is
+		//RESPONSE occurs when a unit is damaged and is written into 1 core onDamage function inside of DDS
+		//plugin code order is
+		//	DamageEvent
+		//	DamageEventModification
+		//	DamageEventArchetype
+		//	DamageEventUnitModification
+		//
+		//for all plugin points. DamageEvent will always run before DamageEventModification
+		//
+		//RESPONSE's are run in order, and each one runs the plugins in order
+		//all plugins are put into the same function
+        /*
+        *   DDS Event Handling
+        */
+		//read this all as 1 function
+		//the module labels are categories of the function, the pieces of it
+module DAMAGE_EVENT_RESPONSE_LOCALS
+				//declare locals here (only locals)
+                local UnitIndex prevTarget = target
+                local UnitIndex prevSource = source
+                local real prevAmount = amount
+endmodule
+module DAMAGE_EVENT_RESPONSE_BEFORE
+				//this is run before the user events should be fired
+                set target = GetUnitUserData(GetTriggerUnit())
+                set source = GetUnitUserData(GetEventDamageSource())
+                set amount = GetEventDamage()
+endmodule
+module DAMAGE_EVENT_RESPONSE
+				//fire user events
+                call ANY.fire()
+endmodule
+module DAMAGE_EVENT_RESPONSE_AFTER
+				//this is run after user events are fired
+endmodule
+module DAMAGE_EVENT_RESPONSE_CLEANUP
+				//this is run to cleanup variables and reset things
+				//this is to ensure that all plugins have a chance to work with
+				//the data in RESPONSE_AFTER before it's reset
+                set target = prevTarget
+                set source = prevSource
+                set amount = prevAmount
+endmodule
+	endscope
+    //! endtextmacro
+endlibrary
+[/jass]
+
+[b]Use Of Above Custom Plugin[/b]
+[jass]
+struct Test extends array
+    private static method onDamage takes nothing returns nothing
+        call DisplayTimedTextToPlayer(GetLocalPlayer(),0,0,60,"Damage: "+R2S(amount))
+    endmethod
+
+    implement DDS
+endstruct
+[/jass]
+[point]Templates[/point][goto=Index]Index[/goto]
+[tabs]
+[tab=Damage Event][jass]
+library DamageEvent /* v1.0.0.0
+*************************************************************************************
+*
+*   Damage Event plugin for DDS
+*
+*       source
+*       target
+*       damage
+*       ANY (PriorityEvent or Event)
+*
+*************************************************************************************
+*
+*   */uses/*
+*
+*       */ DDS                      /*      hiveworkshop.com/forums/spells-569/framework-dds-damage-detection-system-231238/
+*       */ optional PriorityEvent   /*      hiveworkshop.com/forums/jass-resources-412/snippet-priority-event-213573/
+*
+************************************************************************************
+*
+*   SETTINGS
+*/
+globals
+    /*************************************************************************************
+    *
+    *   
+    *
+    *************************************************************************************/
+    
+endglobals
+/*
+*************************************************************************************
+*
+*   API
+*
+*       
+*
+*************************************************************************************
+*
+*   Interface
+*
+*       
+*
+*************************************************************************************/
+    //! textmacro DAMAGE_EVENT_CODE
+        /*
+        *   DDS API
+        *
+        *       
+        *
+        */
+        private module DAMAGE_EVENT_API
+            
+        endmodule
+        module DAMAGE_EVENT_INIT
+            
+        endmodule
+
+        /*
+        *   DDS Interface
+        *
+        *       
+        *
+        */
+        module DAMAGE_EVENT_INTERFACE
+            
+        endmodule
+
+        /*
+        *   DDS Event Handling
+        */
+module DAMAGE_EVENT_RESPONSE_LOCALS
+                
+endmodule
+module DAMAGE_EVENT_RESPONSE_BEFORE
+                
+endmodule
+module DAMAGE_EVENT_RESPONSE
+                
+endmodule
+module DAMAGE_EVENT_RESPONSE_AFTER
+endmodule
+module DAMAGE_EVENT_RESPONSE_CLEANUP
+                
+endmodule
+    //! endtextmacro
+endlibrary
+[/jass][/tab]
+[tab=Damage Event Modification][jass]
+library DamageEventModification /* v1.0.0.0
+*************************************************************************************
+*
+*   Damage Event Modification plugin for DDS
+*
+*       
+*
+*************************************************************************************
+*
+*   */uses/*
+*
+*       */ DDS                      /*      hiveworkshop.com/forums/spells-569/framework-dds-damage-detection-system-231238/
+*       */ DamageEvent              /*      
+*
+************************************************************************************
+*
+*   SETTINGS
+*/
+globals
+    /*************************************************************************************
+    *
+    *   
+    *
+    *************************************************************************************/
+    
+endglobals
+/*
+*************************************************************************************
+*
+*   API
+*
+*       
+*
+*************************************************************************************
+*
+*   Interface
+*
+*       
+*
+*************************************************************************************/
+    //! textmacro DAMAGE_EVENT_MODIFICATION_CODE
+        /*
+        *   DDS API
+        *
+        *       
+        *
+        */
+        private module DAMAGE_EVENT_MODIFICATION_API
+            
+        endmodule
+        module DAMAGE_EVENT_MODIFICATION_INIT
+            
+        endmodule
+
+        /*
+        *   DDS Interface
+        *
+        *       
+        *
+        *       
+        */
+        module DAMAGE_EVENT_MODIFICATION_INTERFACE
+            
+        endmodule
+
+        /*
+        *   DDS Event Handling
+        */
+module DAMAGE_EVENT_MODIFICATION_RESPONSE_LOCALS
+                
+endmodule
+module DAMAGE_EVENT_MODIFICATION_RESPONSE_BEFORE
+                
+endmodule
+module DAMAGE_EVENT_MODIFICATION_RESPONSE
+                
+endmodule
+module DAMAGE_EVENT_MODIFICATION_RESPONSE_AFTER
+                
+endmodule
+module DAMAGE_EVENT_MODIFICATION_RESPONSE_CLEANUP
+                
+endmodule
+    //! endtextmacro
+endlibrary
+[/jass][/tab]
+[tab=Damage Event Archetype][jass]
+library DamageEventArchetype /* v1.0.0.0
+*************************************************************************************
+*
+*   Damage Event Archetype plugin for DDS
+*
+*       
+*
+*************************************************************************************
+*
+*   */uses/*
+*
+*       */ DDS                      /*      hiveworkshop.com/forums/spells-569/framework-dds-damage-detection-system-231238/
+*       */ DamageEventModification  /*      
+*
+************************************************************************************
+*
+*   SETTINGS
+*/
+globals
+    /*************************************************************************************
+    *
+    *   
+    *
+    *************************************************************************************/
+    
+endglobals
+/*
+*************************************************************************************
+*
+*   API
+*
+*       
+*
+*************************************************************************************
+*
+*   Interface
+*
+*       
+*
+*************************************************************************************/
+    //! textmacro DAMAGE_EVENT_ARCHETYPE_CODE
+        /*
+        *   DDS API
+        *
+        *       
+        *
+        */
+        private module DAMAGE_EVENT_ARCHETYPE_API
+            
+        endmodule
+        module DAMAGE_EVENT_ARCHETYPE_INIT
+            
+        endmodule
+
+        /*
+        *   DDS Interface
+        *
+        *       
+        *
+        *       
+        */
+        module DAMAGE_EVENT_ARCHETYPE_INTERFACE
+            
+        endmodule
+
+        /*
+        *   DDS Event Handling
+        */
+module DAMAGE_EVENT_ARCHETYPE_RESPONSE_LOCALS
+                
+endmodule
+module DAMAGE_EVENT_ARCHETYPE_RESPONSE_BEFORE
+                
+endmodule
+module DAMAGE_EVENT_ARCHETYPE_RESPONSE
+                
+endmodule
+module DAMAGE_EVENT_ARCHETYPE_RESPONSE_AFTER
+                
+endmodule
+module DAMAGE_EVENT_ARCHETYPE_RESPONSE_CLEANUP
+                
+endmodule
+    //! endtextmacro
+endlibrary
+[/jass][/tab]
+[tab=Damage Event Unit Modification][jass]
+library DamageEventUnitModification /* v1.0.0.0
+*************************************************************************************
+*
+*   Damage Event Unit Modification plugin for DDS
+*
+*       
+*
+*************************************************************************************
+*
+*   */uses/*
+*
+*       */ DDS                      /*      hiveworkshop.com/forums/spells-569/framework-dds-damage-detection-system-231238/
+*       */ DamageEventModification  /*      
+*
+************************************************************************************
+*
+*   SETTINGS
+*/
+globals
+    /*************************************************************************************
+    *
+    *   
+    *
+    *************************************************************************************/
+    
+endglobals
+/*
+*************************************************************************************
+*
+*   API
+*
+*       
+*
+*************************************************************************************
+*
+*   Interface
+*
+*       
+*
+*************************************************************************************/
+    //! textmacro DAMAGE_EVENT_UNIT_MODIFICATION_CODE
+        /*
+        *   DDS API
+        *
+        *       
+        *
+        */
+        private module DAMAGE_EVENT_UNIT_MODIFICATION_API
+            
+        endmodule
+        module DAMAGE_EVENT_UNIT_MODIFICATION_INIT
+            
+        endmodule
+
+        /*
+        *   DDS Interface
+        *
+        *       
+        *
+        *       
+        */
+        module DAMAGE_EVENT_UNIT_MODIFICATION_INTERFACE
+            
+        endmodule
+
+        /*
+        *   DDS Event Handling
+        */
+module DAMAGE_EVENT_UNIT_MODIFICATION_RESPONSE_LOCALS
+                
+endmodule
+module DAMAGE_EVENT_UNIT_MODIFICATION_RESPONSE_BEFORE
+                
+endmodule
+module DAMAGE_EVENT_UNIT_MODIFICATION_RESPONSE
+                
+endmodule
+module DAMAGE_EVENT_UNIT_MODIFICATION_RESPONSE_AFTER
+                
+endmodule
+module DAMAGE_EVENT_UNIT_MODIFICATION_RESPONSE_CLEANUP
+                
+endmodule
+    //! endtextmacro
+endlibrary
+[/jass][/tab]
+[/tabs]
+[point]Reviews[/point][goto=Index]Index[/goto]
+
+[url=http://www.hiveworkshop.com/forums/2300741-post19.html]Review by bowser499[/url]
+[url=http://www.hiveworkshop.com/forums/2300989-post6.html]Review by Almia[/url]
+[url=http://www.hiveworkshop.com/forums/2301652-post17.html]Review by Lord_Demon_X[/url]
+[url=http://www.hiveworkshop.com/forums/2319315-post51.html]Review by looking_for_help[/url]
+[url=http://www.hiveworkshop.com/forums/2326762-post60.html]Review by mckill2009[/url]
+[url="http://www.hiveworkshop.com/forums/2446804-post95.html"]Review by Geshishouhu[/url]
+
+[point]end[/point]

@@ -1,0 +1,605 @@
+This map should be used in all maps that either have leveling or bounty. It fixes warcraft leveling bugs and does shared bounty. It also uses a better xp algorithm than warcraft.
+
+This can also be configured to display gold, lumber, and xp rewards on either the killing unit or killed unit. All of the actual algorithms are placed at the top of the map so that users can modify them to suit their own needs. The default algorithms are what I consider to be very good and are based on a mix of algorithms used in popular MMORPG games as well as my own.
+
+[jass]
+library HeroReward /* v2.2.1.1
+*************************************************************************************
+*
+*   Benefits:
+*
+*       -   Bugless levels and xp up to 10000
+*       -   More control of how heroes recieve xp
+*       -   More control of how players recieve bounty
+*
+*   Cons:
+*
+*       -   Have to use custom functions to add/remove xp and levels
+*
+*   Requirements:
+*
+*       This system will not work without these values
+*       **************************************************************************************
+*       *                                                                                    *
+*       *   Advanced -&gt; Gameplay Constants                                                   *
+*       *                                                                                    *
+*       *       Hero Attributes     - HP Regen. Bonus per Strength Point        0.00         *
+*       *       Hero Attributes     - Mana Regen. Bonus per Intelligence Point  0.00         *
+*       *                                                                                    *
+*       *       Hero XP Required    - Constant Factor                           -10000       *
+*       *       Hero XP Required    - Level Factor                              10000        *
+*       *       Hero XP Required    - Previous Level Factor                     0.00         *
+*       *       Hero XP Required    - Table                                     10000        *
+*       *                                                                                    *
+*       *       Unit Maximum Level                                              up to 100000 *
+*       *                                                                                    *
+*       **************************************************************************************
+*
+*************************************************************************************
+*
+*   */ uses /*
+*
+*       */ UnitIndexer /*               hiveworkshop.com/forums/jass-functions-413/unit-indexer-172090/
+*       */ UnitList /*                  hiveworkshop.com/forums/jass-functions-413/snippet-unit-list-191657/
+*       */ Bounty /*                    hiveworkshop.com/forums/submissions-414/snippet-bounty-196926/
+*       */ GetLearnedAbilities /*       hiveworkshop.com/forums/submissions-414/get-learned-abilities-203539/
+*       */ Table /*                     hiveworkshop.com/forums/jass-functions-413/snippet-new-table-188084/
+*       */ RegisterPlayerUnitEvent /*   hiveworkshop.com/forums/jass-functions-413/snippet-registerplayerunitevent-203338/
+*
+*************************************************************************************
+*
+*    Functions
+*
+*       function GetLevel takes unit whichUnit returns integer
+*       function SetLevel takes unit whichUnit, integer level, boolean showEyeCandy returns nothing
+*       function AddLevel takes unit whichUnit, integer levelsToAdd, boolean showEyeCandy returns nothing
+*
+*       function AddXP takes unit whichUnit, integer xp, boolean showEyeCandy returns nothing
+*       function AddPercentXP takes unit whichUnit, real percent, boolean showEyeCandy returns nothing
+*
+*       function GetRequiredToLevelXP takes unit whichUnit returns integer
+*       function GetRequiredToLevelPercentXP takes unit whichUnit returns real
+*
+*       function GetLevelXP takes unit whichUnit returns integer
+*       function GetLevelPercentXP takes unit whichUnit returns real
+*
+*       function IsEnabledXP takes unit whichUnit returns boolean
+*       function EnableUnitXP takes unit whichUnit, boolean flag returns nothing
+*
+*       function GetMaxLevel takes nothing returns integer
+*
+*
+*   Configuration Information
+*
+*       -   XP Settings and Algorithm
+*       -   Party Settings and Algorithm
+*       -   Bounty Settings and Algorithm
+*
+************************************************************************************/
+//! textmacro HERO_REWARD_CONFIG
+
+/************************************************************************************
+*
+*   XP Settings and Algorithm
+*
+************************************************************************************/
+    globals
+        //the xp rate
+        private constant real XP_RATE = 350
+        
+        //increase in how much xp a unit gives (1.8 is max)
+        private constant real XP_GIVE_RATE = 1.8
+        
+        //increase in how much xp is required to level per level (2.1 is max)
+        private constant real XP_REQ_RATE = 2.1
+        
+        //party bonus per member (additive)
+        private constant real PARTY_BONUS = .35
+        
+        //xp decline for killing weaker units
+        private constant real LOW_DEGRADE = .13
+        
+        //xp increase for killing stronger units
+        private constant real HIGH_BONUS = .1
+        
+        //max level a player can party with and still get xp
+        //1.5 means level*1.5 = max
+        private constant real PARTY_MAX_LEVEL = 1.5
+        
+        private constant real UNIT_TYPE_ANCIENT_BONUS = .01
+        private constant real UNIT_TYPE_ETHEREAL_BONUS = .03
+        private constant real UNIT_TYPE_FLYING_BONUS = .03
+        private constant real UNIT_TYPE_GIANT_BONUS = .01
+        private constant real UNIT_TYPE_GROUND_BONUS = 0
+        private constant real UNIT_TYPE_HERO_BONUS = .05
+        private constant real UNIT_TYPE_MAGIC_IMMUNE_BONUS = .03
+        private constant real UNIT_TYPE_MECHANICAL_BONUS = .01
+        private constant real UNIT_TYPE_MELEE_ATTACKER_BONUS = 0
+        private constant real UNIT_TYPE_PEON_BONUS = -.95
+        private constant real UNIT_TYPE_RANGED_ATTACKER_BONUS = .01
+        private constant real UNIT_TYPE_RESISTANT_BONUS = .03
+        private constant real UNIT_TYPE_SAPPER_BONUS = -.9
+        private constant real UNIT_TYPE_STRUCTURE_BONUS = -10
+        private constant real UNIT_TYPE_TAUREN_BONUS = .01
+        private constant real UNIT_TYPE_UNDEAD_BONUS = .01
+        private constant real UNIT_TYPE_SUMMONED_BONUS = -.95
+    endglobals
+    
+    private function GetBonus takes unit whichUnit, unittype unitType, real bonus returns real
+        if (IsUnitType(whichUnit, unitType)) then
+            return bonus
+        endif
+        return 0.
+    endfunction
+    
+    function CalculateUnitBonusXP takes unit killedUnit returns real
+        local real bonus = 0
+        
+        set bonus = bonus + GetBonus(killedUnit,UNIT_TYPE_ANCIENT,UNIT_TYPE_ANCIENT_BONUS)
+        set bonus = bonus + GetBonus(killedUnit,UNIT_TYPE_ETHEREAL,UNIT_TYPE_ETHEREAL_BONUS)
+        set bonus = bonus + GetBonus(killedUnit,UNIT_TYPE_FLYING,UNIT_TYPE_FLYING_BONUS)
+        set bonus = bonus + GetBonus(killedUnit,UNIT_TYPE_GIANT,UNIT_TYPE_GIANT_BONUS)
+        set bonus = bonus + GetBonus(killedUnit,UNIT_TYPE_GROUND,UNIT_TYPE_GROUND_BONUS)
+        set bonus = bonus + GetBonus(killedUnit,UNIT_TYPE_HERO,UNIT_TYPE_HERO_BONUS)
+        set bonus = bonus + GetBonus(killedUnit,UNIT_TYPE_MAGIC_IMMUNE,UNIT_TYPE_MAGIC_IMMUNE_BONUS)
+        set bonus = bonus + GetBonus(killedUnit,UNIT_TYPE_MECHANICAL,UNIT_TYPE_MECHANICAL_BONUS)
+        set bonus = bonus + GetBonus(killedUnit,UNIT_TYPE_MELEE_ATTACKER,UNIT_TYPE_MELEE_ATTACKER_BONUS)
+        set bonus = bonus + GetBonus(killedUnit,UNIT_TYPE_PEON,UNIT_TYPE_PEON_BONUS)
+        set bonus = bonus + GetBonus(killedUnit,UNIT_TYPE_RANGED_ATTACKER,UNIT_TYPE_RANGED_ATTACKER_BONUS)
+        set bonus = bonus + GetBonus(killedUnit,UNIT_TYPE_RESISTANT,UNIT_TYPE_RESISTANT_BONUS)
+        set bonus = bonus + GetBonus(killedUnit,UNIT_TYPE_SAPPER,UNIT_TYPE_SAPPER_BONUS)
+        set bonus = bonus + GetBonus(killedUnit,UNIT_TYPE_STRUCTURE,UNIT_TYPE_STRUCTURE_BONUS)
+        set bonus = bonus + GetBonus(killedUnit,UNIT_TYPE_TAUREN,UNIT_TYPE_TAUREN_BONUS)
+        set bonus = bonus + GetBonus(killedUnit,UNIT_TYPE_UNDEAD,UNIT_TYPE_UNDEAD_BONUS)
+        set bonus = bonus + GetBonus(killedUnit,UNIT_TYPE_SUMMONED,UNIT_TYPE_SUMMONED_BONUS)
+        
+        return bonus
+    endfunction
+    
+    private function GetLevelDifBonus takes integer level, integer xpLevel returns real
+        local real levelDifBonus
+    
+        //calculate level difference bonus
+        if (xpLevel==level) then
+            set levelDifBonus=1
+        elseif (xpLevel&lt;level) then
+            set levelDifBonus = 1+(xpLevel-level)*LOW_DEGRADE
+        else
+            set levelDifBonus = 1+(level-xpLevel)*HIGH_BONUS
+        endif
+        if (0&gt;levelDifBonus) then
+            set levelDifBonus=0
+        endif
+        
+        return levelDifBonus
+    endfunction
+    
+    private function GetGivenXP takes integer xpLevel returns real
+        return Pow(xpLevel+1,XP_GIVE_RATE)
+    endfunction
+    
+    private function GetReqXP takes integer level returns real
+        return Pow(level,XP_REQ_RATE)
+    endfunction
+    
+    private function GetPartyBonus takes integer level, integer maxPartyLevel, integer partySize, integer sumPartyLevel returns real
+        local real partyBonus
+        
+        set partyBonus = I2R(level)/maxPartyLevel
+        set partyBonus = partyBonus*partyBonus*level/sumPartyLevel
+        set partyBonus = partyBonus*(1+PARTY_BONUS*(partySize-1))
+        
+        return partyBonus
+    endfunction
+    
+    private function CanGetPartyXP takes integer level, integer maxPartyLevel returns boolean
+        return level*PARTY_MAX_LEVEL&gt;=maxPartyLevel
+    endfunction
+    
+    private function CalculateAwardXP takes real xp, real xpReq, real partyBonus, real levelDifBonus, real xpBonus returns integer
+        return R2I(xp/xpReq*XP_RATE*partyBonus*levelDifBonus*xpBonus+.5)
+    endfunction
+    
+    private function GiveXP takes unit whichUnit, integer award returns nothing
+        if (0 != award) then
+            call AddXP(whichUnit,award,true)
+        endif
+    endfunction
+    
+    function CalculateAwardedXP takes unit whichUnit, real xpBonus, integer xpLevel returns integer
+        local integer level = GetHeroLevel(whichUnit)
+        local real levelDifBonus = GetLevelDifBonus(level, xpLevel)
+        local real xp = GetGivenXP(xpLevel)
+        local real xpReq = GetReqXP(level)
+        local integer award = CalculateAwardXP(xp, xpReq, 1, levelDifBonus, xpBonus)
+        
+        return award
+    endfunction
+    
+    function CalculateAwardedPartyXP takes unit whichUnit, real xpBonus, integer xpLevel, integer partySize, integer sumPartyLevel, integer maxPartyLevel, real distance returns integer
+        local integer level = GetHeroLevel(whichUnit)
+        local real levelDifBonus
+        local real partyBonus
+        local real xp
+        local real xpReq
+        local integer award
+        
+        if (CanGetPartyXP(level, maxPartyLevel)) then
+            set levelDifBonus = GetLevelDifBonus(level, xpLevel)
+            set partyBonus = GetPartyBonus(level, maxPartyLevel, partySize, sumPartyLevel)
+            set xp = GetGivenXP(xpLevel)
+            set xpReq = GetReqXP(level)
+            
+            set award = CalculateAwardXP(xp, xpReq, partyBonus, levelDifBonus, xpBonus)
+            
+            return award
+        endif
+        
+        return 0
+    endfunction
+    
+    function AwardXP takes unit whichUnit, real xpBonus, integer xpLevel returns nothing
+        call GiveXP(whichUnit, CalculateAwardedXP(whichUnit, xpBonus, xpLevel))
+    endfunction
+    
+    function AwardPartyXP takes unit whichUnit, real xpBonus, integer xpLevel, integer partySize, integer sumPartyLevel, integer maxPartyLevel, real distance returns nothing
+        call GiveXP(whichUnit, CalculateAwardedPartyXP(whichUnit, xpBonus, xpLevel, partySize, sumPartyLevel, maxPartyLevel, distance))
+    endfunction
+    
+    private function AwardKilledPartyXP takes unit whichUnit, unit killedUnit, real xpBonus, integer killedLevel, integer partySize, integer sumPartyLevel, integer maxPartyLevel, real distance returns nothing
+        call AwardPartyXP(whichUnit, xpBonus, killedLevel, partySize, sumPartyLevel, maxPartyLevel, distance)
+    endfunction
+/************************************************************************************
+*
+*   Party Settings and Algorithm
+*
+************************************************************************************/
+    globals
+        private constant real MAX_DISTANCE = 500
+    endglobals
+    private function IsUnitInParty takes unit whichUnit, unit originUnit, real distance returns boolean
+        return (whichUnit == originUnit) or (/*
+        */GetPlayerAlliance(GetOwningPlayer(whichUnit),GetOwningPlayer(originUnit),ALLIANCE_SHARED_XP) and /*
+        */distance&lt;=MAX_DISTANCE and /*
+        */IsUnitAlly(whichUnit,GetOwningPlayer(originUnit)) and /*
+        */not IsUnitType(whichUnit,UNIT_TYPE_DEAD) and /*
+        */0 != GetUnitTypeId(whichUnit) /*
+        */)
+    endfunction
+/************************************************************************************
+*
+*   Bounty Settings and Algorithm
+*
+************************************************************************************/
+    private function AddPlayerState takes player whichPlayer, playerstate whichState, integer delta returns nothing
+        call SetPlayerState(whichPlayer, whichState, GetPlayerState(whichPlayer, whichState)+delta)
+    endfunction
+    
+    private function GetPartyBounty takes integer bounty, real partyBonus returns integer
+        return R2I(bounty*partyBonus+.5)
+    endfunction
+    
+    function AwardBounty takes player whichPlayer, unit killedUnit, integer gold, integer lumber, integer partySize returns nothing
+        //calculate party bonus
+        local real partyBonus = 1./partySize*(1+.35*(partySize-1))
+        
+        //add player states
+        if (0 != gold) then
+            call AddPlayerState(whichPlayer, PLAYER_STATE_RESOURCE_GOLD, GetPartyBounty(gold, partyBonus))
+        endif
+        
+        if (0 != lumber) then
+            call AddPlayerState(whichPlayer, PLAYER_STATE_RESOURCE_LUMBER, GetPartyBounty(lumber, partyBonus))
+        endif
+    endfunction
+//! endtextmacro
+
+/************************************************************************************
+*
+*   Code
+*
+************************************************************************************/
+    function GetLevel takes unit whichUnit returns integer
+        return GetHeroLevel(whichUnit)
+    endfunction
+    
+    function SetLevel takes unit whichUnit, integer level, boolean showEyeCandy returns nothing
+        local integer l = GetHeroLevel(whichUnit)
+        local integer array levels
+        local integer c
+        local LearnedAbilities abils
+        local integer total
+        local integer total2
+        local unit check
+        local real pm
+        local real pl
+        if (l!=level) then
+            call SuspendHeroXP(whichUnit,false)
+            
+            if (level&gt;GetHeroLevel(whichUnit)) then
+                call SetHeroLevel(whichUnit,level,showEyeCandy)
+            else
+                //retrieve skills total
+                set UnitIndexer.enabled = false
+                set check = CreateUnit(Player(15),GetUnitTypeId(whichUnit),GetRectMaxX(bj_mapInitialPlayableArea),GetRectMaxY(bj_mapInitialPlayableArea),0)
+                if (level&gt;1) then
+                    call SetHeroLevel(check,level,false)
+                endif
+                set total = GetHeroSkillPoints(check)
+                call RemoveUnit(check)
+                set check=null
+                set UnitIndexer.enabled = true
+                
+                //retrieve life and mana of unit
+                if (0&lt;GetUnitState(whichUnit,UNIT_STATE_MAX_MANA)) then
+                    set pm=GetUnitState(whichUnit,UNIT_STATE_MAX_MANA)
+                endif
+                set pl=GetWidgetLife(whichUnit)/GetUnitState(whichUnit,UNIT_STATE_MAX_LIFE)
+                
+                //strip hero levels
+                call UnitStripHeroLevel(whichUnit,l-level)
+                
+                //get total skills on hero
+                set abils = LearnedAbilities[whichUnit]
+                set c = abils.count
+                set total2 = GetHeroSkillPoints(whichUnit)
+                loop
+                    exitwhen 0==c
+                    set c=c-1
+                    set total2 = total2 + GetUnitAbilityLevel(whichUnit,abils[c])
+                endloop
+                
+                //if totals aren't equal, add missing skill points
+                if (total2!=total) then
+                    call UnitModifySkillPoints(whichUnit,total-total2)
+                endif
+                
+                //set life and mana of unit
+                if (0&lt;pm) then
+                    call SetUnitState(whichUnit,UNIT_STATE_MANA,GetUnitState(whichUnit,UNIT_STATE_MAX_MANA)*pm)
+                endif
+                if (0&lt;pl) then
+                    call SetUnitState(whichUnit,UNIT_STATE_LIFE,GetUnitState(whichUnit,UNIT_STATE_MAX_LIFE)*pl)
+                endif
+            endif
+            
+            call SuspendHeroXP(whichUnit,true)
+        endif
+    endfunction
+    
+    function AddLevel takes unit whichUnit, integer levels, boolean showEyeCandy returns nothing
+        call SetLevel(whichUnit,GetHeroLevel(whichUnit)+levels,showEyeCandy)
+    endfunction
+    
+    function SetXP takes unit whichUnit, integer xp, boolean showEyeCandy returns nothing
+        local integer l=GetHeroLevel(whichUnit)
+        if (xp != GetHeroXP(whichUnit)) then
+            call SuspendHeroXP(whichUnit,false)
+            
+            set l=1+xp/10000
+            
+            if (GetHeroLevel(whichUnit) != l) then
+                call SetLevel(whichUnit,l,showEyeCandy)
+                call SuspendHeroXP(whichUnit,false)
+            endif
+            
+            if (xp != GetHeroXP(whichUnit)) then
+                call AddHeroXP(whichUnit,xp-GetHeroXP(whichUnit),false)
+            endif
+            
+            call SuspendHeroXP(whichUnit,true)
+        endif
+    endfunction
+    
+    function AddXP takes unit whichUnit, integer xp, boolean showEyeCandy returns nothing
+        call SetXP(whichUnit,GetHeroXP(whichUnit)+xp,showEyeCandy)
+    endfunction
+    
+    function AddPercentXP takes unit whichUnit, real percent, boolean showEyeCandy returns nothing
+        call AddXP(whichUnit,R2I(percent*100),showEyeCandy)
+    endfunction
+    
+    function GetLevelXP takes unit whichUnit returns integer
+        return GetHeroXP(whichUnit)-(GetHeroLevel(whichUnit)-1)*10000
+    endfunction
+    
+    function GetLevelPercentXP takes unit whichUnit returns real
+        return .01*GetLevelXP(whichUnit)
+    endfunction
+    
+    function GetRequiredToLevelXP takes unit whichUnit returns integer
+        return 10000-GetLevelXP(whichUnit)
+    endfunction
+    
+    function GetRequiredToLevelPercentXP takes unit whichUnit returns real
+        return .01*GetRequiredToLevelXP(whichUnit)
+    endfunction
+    
+    //! runtextmacro HERO_REWARD_CONFIG()
+    
+    globals
+        private integer array unitPointer
+        private real array unitDistance
+        private integer sumLevel
+        private integer maxLevel
+        private integer unitCount
+        private integer array playerPointer
+        private integer playerCount
+        private real ox
+        private real oy
+        private integer MAX_LEVEL
+        
+        private boolean array enable
+    endglobals
+    
+    function GetMaxLevel takes nothing returns integer
+        return MAX_LEVEL
+    endfunction
+    
+    function IsEnabledXP takes unit whichUnit returns boolean
+        return enable[GetUnitUserData(whichUnit)]
+    endfunction
+    
+    function EnableUnitXP takes unit whichUnit, boolean flag returns nothing
+        set enable[GetUnitUserData(whichUnit)] = flag
+    endfunction
+    
+    private function Setup takes nothing returns nothing
+        local UnitList node = UnitList[0].next
+        
+        local real x2
+        local real y2
+        
+        local boolean array added
+        
+        local unit triggerUnit = GetTriggerUnit()
+        local unit killingUnit = GetKillingUnit()
+        
+        local integer playerId
+        
+        local integer level
+        
+        set unitCount = 0
+        set playerCount = 0
+        set sumLevel = 0
+        set maxLevel = 0
+        
+        set ox = GetWidgetX(triggerUnit)
+        set oy = GetWidgetY(triggerUnit)
+        
+        loop
+            exitwhen 0==node
+            
+            set x2 = GetWidgetX(node.unit) - ox
+            set y2 = GetWidgetY(node.unit) - oy
+            set unitDistance[node] = SquareRoot(x2*x2+y2*y2)
+            
+            if (IsUnitInParty(node.unit,killingUnit,unitDistance[node])) then
+                set playerId = GetPlayerId(GetOwningPlayer(node.unit))
+                if (not added[playerId]) then
+                    set playerPointer[playerCount] = playerId
+                    set playerCount = playerCount+1
+                    set added[playerId] = true
+                endif
+                
+                if (IsUnitType(node.unit, UNIT_TYPE_HERO) and enable[node]) then
+                    set unitPointer[unitCount] = node
+                    set unitCount = unitCount + 1
+                    
+                    set level = GetHeroLevel(node.unit)
+                    set sumLevel = sumLevel + level
+                    
+                    if (level&gt;maxLevel) then
+                        set maxLevel = level
+                    endif
+                endif
+            endif
+            
+            set node=node.next
+        endloop
+        
+        set killingUnit = null
+        set triggerUnit = null
+    endfunction
+    private function HandleBounty takes nothing returns boolean
+        local integer gold
+        local integer lumber
+        local player killingPlayer
+        local integer i
+        local unit triggerUnit
+        
+        if (null!=GetKillingUnit() and IsUnitEnemy(GetKillingUnit(),GetTriggerPlayer())) then
+            set gold = Bounty.gold
+            set lumber = Bounty.lumber
+            set killingPlayer = GetOwningPlayer(GetKillingUnit())
+            set triggerUnit = GetTriggerUnit()
+            
+            call Setup()
+            
+            if (0 != gold or 0 != lumber) then
+                if (0 != gold) then
+                    call SetPlayerState(killingPlayer,PLAYER_STATE_RESOURCE_GOLD,GetPlayerState(killingPlayer,PLAYER_STATE_RESOURCE_GOLD)-gold)
+                endif
+                if (0 != lumber) then
+                    call SetPlayerState(killingPlayer,PLAYER_STATE_RESOURCE_LUMBER,GetPlayerState(killingPlayer,PLAYER_STATE_RESOURCE_LUMBER)-lumber)
+                endif
+                
+                set i = playerCount
+                loop
+                    exitwhen 0 == i
+                    set i = i-1
+                    call AwardBounty(Player(playerPointer[i]),triggerUnit,gold,lumber,playerCount)
+                endloop
+            endif
+            
+            set killingPlayer = null
+            set triggerUnit = null
+        endif
+        
+        return false
+    endfunction
+    private function HandleXP takes nothing returns boolean
+        local integer i
+        local unit triggerUnit
+        local integer triggerLevel
+        local real bonusXp
+        
+        if (null!=GetKillingUnit() and IsUnitEnemy(GetKillingUnit(),GetTriggerPlayer())) then
+            set triggerUnit = GetTriggerUnit()
+            
+            set bonusXp = 1+CalculateUnitBonusXP(triggerUnit)
+            if (0 &gt; bonusXp) then
+                set bonusXp = 0
+            endif
+            
+            if (IsUnitType(triggerUnit, UNIT_TYPE_HERO)) then
+                set triggerLevel = GetHeroLevel(triggerUnit)
+            else
+                set triggerLevel = GetUnitLevel(triggerUnit)
+            endif
+            
+            set i = unitCount
+            loop
+                exitwhen 0 == i
+                set i = i-1
+                if (GetHeroLevel(GetUnitById(unitPointer[i]))&lt;MAX_LEVEL) then
+                    call AwardKilledPartyXP(GetUnitById(unitPointer[i]),triggerUnit,bonusXp,triggerLevel,unitCount,sumLevel,maxLevel,unitDistance[unitPointer[i]])
+                endif
+            endloop
+            
+            set triggerUnit = null
+        endif
+        
+        return false
+    endfunction
+    
+    private function Index takes nothing returns boolean
+        set enable[GetIndexedUnitId()]=true
+        call SuspendHeroXP(GetIndexedUnit(), true)
+        return false
+    endfunction
+    
+    private module N
+        private static method onInit takes nothing returns nothing
+            local unit u
+            
+            set UnitIndexer.enabled = false
+            set u = CreateUnit(Player(15),'Hpal',GetRectMaxX(bj_mapInitialPlayableArea),GetRectMaxY(bj_mapInitialPlayableArea),0)
+            call SetHeroLevel(u,10000,false)
+            set MAX_LEVEL = GetHeroLevel(u)
+            call RemoveUnit(u)
+            set UnitIndexer.enabled = true
+            
+            call RegisterPlayerUnitEvent(EVENT_PLAYER_UNIT_DEATH, function HandleXP)
+            
+            call Bounty.event.register(Condition(function HandleBounty))
+            call RegisterUnitIndexEvent(Condition(function Index),UnitIndexer.INDEX)
+            
+            set u=null
+        endmethod
+    endmodule
+    private struct T extends array
+        implement N
+    endstruct
+endlibrary
+[/jass]

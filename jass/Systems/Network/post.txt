@@ -1,0 +1,1235 @@
+[center][url="http://www.hiveworkshop.com/forums/world-editor-help-zone-98/codeless-save-load-its-now-reality-demo-map-included-226082/"]Codeless Save/Load, Now A Reality[/url][/center]
+
+[otable]
+  [tr]
+    [titletd][/titletd]
+    [titletd][size=6][color=#ccaa00]Network[/color][/size][/titletd]
+    [titletd]
+      [size=2][color=#60a600][right]v2.0.0.0
+      Nestharus[/right][/color][/size]
+    [/titletd]
+  [/tr]
+  [tr]
+    [tdalt][size=5][color=#222222]__[/color][/size][/tdalt]
+    [td][center][otable][td]This script is used to synchronize integers between players in a network game. Integer synchronization along with the use of File I/O allows Warcraft 3 to take advantage of codeless save/load, similar to Starcraft 2's banks.
+
+This uses specialized algorithms to maximize the sync speed, allowing players to synchronize even 10,000 integers from multiple players in the game to every other player in the game at the exact same time in a little over a minute.
+ [color=#332c29]____________________________________________________________________________________________________[/color]
+    [/td][/otable][/center][/td]
+    [tdalt][/tdalt]
+  [/tr]
+  [tr]
+    [tdalt][/tdalt]
+    [td][indent][size=5][color=#d0f680][b]Features[/b][/color][/size][/indent][/td]
+    [tdalt][/tdalt]
+  [/tr]
+  [tr]
+    [tdalt][/tdalt]
+    [td][center][tabs]
+      [tab=Synchronize Single Integers][center][otable]
+        [tr][indent][p]Take a localized variable and synchronize it from every player for every player in the game at the same time[/p][/indent]
+[center][youtube]http://youtu.be/2nOyQJUuz8g[/youtube][/center]          [color=#332c29]____________________________________________________________________________________________________[/color]
+        [/tr]
+        [tr][center][jass]
+local Packet packet
+local integer var = 0
+
+if (GetLocalPlayer() == Player(0)) then
+    set var = 5 //set variable to 5 for player 0
+elseif (GetLocalPlayer() == Player(6)) then
+    set var = 9 //set variable to 9 for player 6
+endif
+
+//if the variable isn't 0, synchronize that variable
+set packet = Packet.broadcast(var, var != 0)
+
+//packet[0] will be 5
+//packet[6] will be 9
+//everything else will be 0
+
+if (packet[0] == 5) then
+    //true
+endif
+
+if (packet[6] == 9) then
+    //true
+endif
+
+if (packet.has(0)) then
+    //true
+endif
+
+if (packet.has(4)) then
+    //false
+endif
+        [/jass][/center][/tr]
+      [/otable][/center][/tab]
+      [tab=Synchronize Many Integers][center][otable]
+        [tr][indent][p]Synchronize many integers from as many players as you like to every other player in the game at the same time[/p][/indent]  
+[center][url=http://www.hiveworkshop.com/forums/pastebin_data/ruiar5/_files/SL%20W%20Network.w3x]Map From Video[/url]
+[youtube]http://youtu.be/zInoz_rvzSE[/youtube][/center]        [color=#332c29]____________________________________________________________________________________________________[/color]
+        [/tr]
+        [tr][center][jass]
+struct MyStream extends array
+    private method getNextBroadcast takes nothing returns integer
+        //return the next integer that you want to synchronize
+        //Example (made up variables)
+        //      set index = index + 1
+        //      return data[index]
+    endmethod
+    
+    private method broadcastPercentComplete takes integer playerId, real percent returns nothing
+        //display that &quot;playerId&quot; is &quot;percent&quot; complete
+    endmethod
+    
+    implement StreamMod
+    
+    //these two methods are just made up by me
+    private static method initializeStream takes nothing returns integer
+        //get the local data from somewhere and then return the # of integers in that data
+    endmethod
+    private static method cleanStream takes nothing returns nothing
+        //clean up your stream, close files, w/e
+    endmethod
+    
+    static method create takes nothing returns MyStream
+        return allocate(initializeStream())
+    endmethod
+    method destroy takes nothing returns nothing
+        call cleanStream()
+        call deallocate()
+    endmethod
+endstruct
+        [/jass][/center][/tr]
+      [/otable][/center][/tab]
+    [/tabs][/center][/td]
+    [tdalt][/tdalt]
+  [/tr]
+  [tr]
+    [tdalt][/tdalt]
+    [td][indent][size=5][color=#d0f680][b]Code[/b][/color][/size][/indent][/td]
+    [tdalt][/tdalt]
+  [/tr]
+  [tr]
+    [tdalt][/tdalt]
+    [td][center][tabs]
+      [tab=Script][center][otable][td]
+        [center]
+[b]Core and Documentation[/b]
+[jass]
+library Network /* v2.0.0.0
+*************************************************************************************
+*
+*   Used to synchronize local data
+*
+*************************************************************************************
+*
+*   */ uses /*
+*   
+*       */ Thread           /*      hiveworkshop.com/forums/jass-resources-412/snippet-thread-218269/
+*
+************************************************************************************
+*
+*   SETTINGS
+*
+*/
+globals
+    /*
+    *   How many integers to synchronize per instant
+    *
+    *   For efficiency reasons, should be a power of 2
+    *   If you find that your threads are crashing due to too many operations, lower the burst size
+    *
+    *   Possible Burst Sizes (4096 = MAX)
+    *       1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096
+    */
+    private constant integer BURST_SIZE = 512
+endglobals
+/*
+************************************************************************************
+*
+*   struct Packet extends array
+*
+*       Description
+*       -----------------------
+*
+*           This is used to synchronize single integers. It can synchronize single integers
+*           from multiple players at once.
+*
+*       Creators/Destructors
+*       -----------------------
+*
+*           static method broadcast takes integer data, boolean source returns Packet
+*               -   Synchronize integer data
+*               -   if source is true, data will be synchronized from the local player
+*
+*               Examples
+*                   The below will send 6 to every other player in the game
+*                   Player 0 is broadcasting the number, but it may be multiple players
+*                   ------------------------------------------------------------------------------
+*                   -   broadcast(6, GetLocalPlayer() == Player(0))
+*
+*                   The below will send var to every other player in the game
+*                   Var is sent from players where var is not equal to 0, meanning that multiple values
+*                   of var may be synchronized
+*                   ------------------------------------------------------------------------------
+*                   -   broadcast(var, var != 0)
+*
+*           method destroy takes nothing returns nothing
+*
+*       Operators
+*       -----------------------
+*
+*           method operator [] takes integer playerId returns integer
+*               -   Reads synchronized value that was sent from playerId
+*
+*       Methods
+*       -----------------------
+*
+*           method has takes integer playerId returns boolean
+*               -    This will return true if a value was sent from playerId
+*
+************************************************************************************
+*
+*   module StreamMod
+*
+*       Description
+*       -----------------------
+*
+*           This converts the struct it is implemented in into a synchronization stream
+*           These streams are used to synchronize many integers
+*           There is no limit to the number of integers that may be synchronized at once, but
+*           10,000 integers does take around 1 minute and 20 seconds when sent from 2 players.
+*
+*       Creators/Destructors
+*       -----------------------
+*
+*           static method allocate takes integer amountOfData returns thistype
+*               -   Call this inside of your create method. Pass in the number of integers
+*               -   you would like to synchronize. This number is local!
+*
+*           method deallocate takes nothing returns nothing
+*               -   Call this in the destroy method
+*
+*       Fields
+*       -----------------------
+*
+*           readonly integer array size[integer playerId]
+*               -    The amount of data that was synchronizeed from playerId
+*
+*       Methods
+*       -----------------------
+*
+*           method read takes integer playerId, integer index returns integer
+*               -   Reads a value out of array of integers synchronized from playerId
+*               -   This array starts at 0.
+*           method synchronize takes nothing returns nothing
+*               -    Synchronizes the stream
+*
+*       Interface
+*       -----------------------
+*
+*           private method getNextBroadcast takes nothing returns integer
+*               -   Create this method above the module implementation. The module calls this method
+*               -   whenever it ges a new integer to be synchronized. This method should return that
+*               -   new integer.
+*
+*           optional private method broadcastPercentComplete takes integer playerId, real percent returns nothing
+*               -   This method is called whenever the download progress for a playerId is updated.
+*               -   The playerId and the download progress is passed in. This method is optional.
+*
+************************************************************************************/
+
+/*          Packet Demonstration
+***********************************************************
+
+local Packet packet
+local integer var = 0
+
+if (GetLocalPlayer() == Player(0)) then
+    set var = 5 //set variable to 5 for player 0
+elseif (GetLocalPlayer() == Player(6)) then
+    set var = 9 //set variable to 9 for player 6
+endif
+
+//if the variable isn't 0, synchronize that variable
+set packet = Packet.broadcast(var, var != 0)
+
+//packet[0] will be 5
+//packet[6] will be 9
+//everything else will be 0
+
+if (packet[0] == 5) then
+    //true
+endif
+
+if (packet[6] == 9) then
+    //true
+endif
+
+if (packet.has(0)) then
+    //true
+endif
+
+if (packet.has(4)) then
+    //false
+endif
+
+***********************************************************
+*/
+/*          Stream Demonstration
+***********************************************************
+
+struct MyStream extends array
+    private method getNextBroadcast takes nothing returns integer
+        //return the next integer that you want to synchronize
+        //Example (made up variables)
+        //      set index = index + 1
+        //      return data[index]
+    endmethod
+    
+    private method broadcastPercentComplete takes integer playerId, real percent returns nothing
+        //display that "playerId" is "percent" complete
+    endmethod
+    
+    implement StreamMod
+    
+    //these two methods are just made up by me
+    private static method initializeStream takes nothing returns integer
+        //get the local data from somewhere and then return the # of integers in that data
+    endmethod
+    private static method cleanStream takes nothing returns nothing
+        //clean up your stream, close files, w/e
+    endmethod
+    
+    static method create takes nothing returns MyStream
+        return allocate(initializeStream())
+    endmethod
+    method destroy takes nothing returns nothing
+        call cleanStream()
+        call deallocate()
+    endmethod
+endstruct
+
+***********************************************************
+*/
+    //! runtextmacro MEMORY()
+    //! runtextmacro DATA()
+    //! runtextmacro BUFFER()
+    //! runtextmacro PACKET()
+    //! runtextmacro STREAM()
+endlibrary
+[/jass]
+
+[b]Memory[/b]
+[jass]
+//! textmacro MEMORY
+    private keyword MemoryInit
+    private struct Memory extends array
+        private static constant string KEY = "!#$%&()*+'-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_`{}~"
+        static constant integer KEY_LENGTH = StringLength(KEY)
+        static constant integer KEY_LENGTH_2D = KEY_LENGTH*KEY_LENGTH
+        
+        private static string array keyStr
+        private static gamecache array data
+        
+        static method write takes integer k1, integer k2, integer k3, integer v returns nothing
+            call StoreInteger(data[k1], keyStr[k2], keyStr[k3], v)
+            call SyncStoredInteger(data[k1], keyStr[k2], keyStr[k3])
+        endmethod
+        static method read takes integer k1, integer k2, integer k3 returns integer
+            return GetStoredInteger(data[k1], keyStr[k2], keyStr[k3])
+        endmethod
+        static method flush takes integer k1, integer k2, integer k3 returns nothing
+            call FlushStoredInteger(data[k1], keyStr[k2], keyStr[k3])
+        endmethod
+        static method has takes integer k1, integer k2, integer k3 returns boolean
+            return HaveStoredInteger(data[k1], keyStr[k2], keyStr[k3])
+        endmethod
+        static method flushKey takes integer k1 returns nothing
+            call FlushGameCache(data[k1])
+            set data[k1] = InitGameCache(keyStr[k1])
+        endmethod
+        
+        static method writeB takes integer k1, integer k2, integer k3 returns nothing
+            call StoreBoolean(data[k1], keyStr[k2], keyStr[k3], true)
+            call SyncStoredBoolean(data[k1], keyStr[k2], keyStr[k3])
+        endmethod
+        static method hasB takes integer k1, integer k2, integer k3 returns boolean
+            return HaveStoredBoolean(data[k1], keyStr[k2], keyStr[k3])
+        endmethod
+        
+        implement MemoryInit
+    endstruct
+    
+    private module MemoryInit
+        private static method initKeys takes nothing returns nothing
+            local integer k = KEY_LENGTH
+            loop
+                set k = k - 1
+                set keyStr[k] = SubString(KEY, k, k + 1)
+                exitwhen 0 == k
+            endloop
+        endmethod
+        private static method initData takes nothing returns nothing
+            local integer k = KEY_LENGTH
+            loop
+                set k = k - 1
+                set data[k] = InitGameCache(keyStr[k])
+                exitwhen 0 == k
+            endloop
+        endmethod
+    
+        private static method onInit takes nothing returns nothing
+            call initKeys()
+            call initData()
+        endmethod
+    endmodule
+//! endtextmacro
+[/jass]
+
+[b]Data[/b]
+[jass]
+//! textmacro DATA
+    private keyword DataInit
+    private struct Data
+        private static integer instanceCount = 0
+        private static integer array recycler
+        
+        private static hashtable array data
+        
+        method read takes integer pid, integer k returns integer
+            return LoadInteger(data[pid], this, k)
+        endmethod
+        method write takes integer pid, integer k, integer v returns nothing
+            call SaveInteger(data[pid], this, k, v)
+        endmethod
+        
+        static method create takes nothing returns thistype
+            local thistype this = recycler[0]
+            if (0 == this) then
+                set this = instanceCount + 1
+                set instanceCount = this
+            else
+                set recycler[0] = recycler[this]
+            endif
+            
+            return this
+        endmethod
+        
+        method destroy takes nothing returns nothing
+            local integer i = 11
+            loop
+                call FlushChildHashtable(data[i], this)
+            
+                exitwhen 0 == i
+                set i = i - 1
+            endloop
+        endmethod
+        
+        implement DataInit
+    endstruct
+    
+    private module DataInit
+        private static method onInit takes nothing returns nothing
+            local integer i = 11
+            loop
+                if (GetPlayerSlotState(Player(i)) == PLAYER_SLOT_STATE_PLAYING and GetPlayerController(Player(i)) == MAP_CONTROL_USER) then
+                    set data[i] = InitHashtable()
+                endif
+                
+                exitwhen 0 == i
+                set i = i - 1
+            endloop
+        endmethod
+    endmodule
+//! endtextmacro
+[/jass]
+
+[b]Buffer[/b]
+[jass]
+//! textmacro BUFFER
+    private struct BufferQueue extends array
+        private static integer instanceCount = 0
+        private static integer array recycler
+    
+        readonly thistype next
+        readonly thistype last
+        
+        readonly integer size
+        
+        method expand takes nothing returns boolean
+            local thistype new = recycler[0]
+            
+            if (0 == new) then
+                set new = instanceCount + 1
+                if (new == Memory.KEY_LENGTH) then
+                    return false
+                endif
+                set instanceCount = new
+            else
+                set recycler[0] = recycler[new]
+            endif
+            
+            set new.next = 0
+            set last.next = new
+            set last = new
+            
+            set size = size + Memory.KEY_LENGTH_2D
+            
+            return true
+        endmethod
+        
+        method contract takes nothing returns nothing
+            local thistype first = next
+            
+            set next = first.next
+            
+            set recycler[first] = recycler[0]
+            set recycler[0] = first
+            
+            set size = size - Memory.KEY_LENGTH_2D
+            
+            if (0 == next) then
+                set last = this
+            endif
+        endmethod
+        
+        static method create takes nothing returns thistype
+            local thistype this = recycler[0]
+            
+            if (0 == this) then
+                set this = instanceCount + 1
+                if (this == Memory.KEY_LENGTH_2D) then
+                    loop
+                        exitwhen 0 != recycler[0]
+                        call TriggerSyncStart()
+                        call TriggerSyncReady()
+                    endloop
+                    
+                    set this = recycler[0]
+                    set recycler[0] = recycler[this]
+                else
+                    set instanceCount = this
+                endif
+            else
+                set recycler[0] = recycler[this]
+            endif
+            
+            set next = 0
+            set last = this
+            
+            set size = Memory.KEY_LENGTH_2D
+            
+            return this
+        endmethod
+        
+        method destroy takes nothing returns nothing
+            loop
+                set recycler[this] = recycler[0]
+                set recycler[0] = this
+                
+                set this = next
+                exitwhen 0 == this
+            endloop
+        endmethod
+    endstruct
+    private struct BufferKey extends array
+        private static integer instanceCount = 0
+        private static integer array recycler
+        
+        private BufferQueue parent
+        
+        //key is split up into 3 sections
+        integer key1
+        integer key2
+        integer key3
+        
+        static method create takes BufferQueue parent returns thistype
+            local thistype this = recycler[0]
+            if (0 == this) then
+                set this = instanceCount + 1
+                set instanceCount = this
+            else
+                set recycler[0] = recycler[this]
+            endif
+            
+            set this.parent = parent
+            
+            set this.key1 = parent
+            
+            return this
+        endmethod
+        
+        method destroy takes nothing returns nothing
+            set recycler[this] = recycler[0]
+            set recycler[0] = this
+        
+            set key2 = 0
+            set key3 = 0
+        endmethod
+        
+        method reset takes nothing returns nothing
+            set key1 = parent
+            set key2 = 0
+            set key3 = 0
+        endmethod
+        
+        method expand takes integer expansion returns nothing
+            if (0 == key1) then
+                set key1 = expansion
+            endif
+        endmethod
+        
+        method goNext takes nothing returns boolean
+            set key3 = key3 + 1
+            if (key3 == Memory.KEY_LENGTH) then
+                set key3 = 0
+                set key2 = key2 + 1
+                if (key2 == Memory.KEY_LENGTH) then
+                    set key2 = 0
+                    set key1 = BufferQueue(key1).next
+                endif
+            endif
+            
+            return 0 != key1
+        endmethod
+        
+        method operator empty takes nothing returns boolean
+            return not Memory.has(key1, key2, key3)
+        endmethod
+        method write takes integer v returns nothing
+            call Memory.write(key1, key2, key3, v)
+        endmethod
+        method read takes nothing returns integer
+            return Memory.read(key1, key2, key3)
+        endmethod
+    endstruct
+    
+    private struct Buffer extends array
+        private BufferKey writeKey
+        private BufferKey progressKey
+        private BufferKey dumpKey
+        
+        private method operator queue takes nothing returns BufferQueue
+            return this
+        endmethod
+        method operator size takes nothing returns integer
+            return queue.size
+        endmethod
+        
+        method expand takes nothing returns boolean
+            if (queue.expand()) then
+                call writeKey.expand(queue.last)
+                
+                return true
+            endif
+            
+            return false
+        endmethod
+        
+        method getProgress takes nothing returns integer
+            local integer progress = 0
+            local integer k1
+            local integer k2
+            local integer k3
+            
+            //loop until empty buffer position or at buffer end
+            loop
+                set k1 = progressKey.key1
+                set k2 = progressKey.key2
+                set k3 = progressKey.key3
+                exitwhen progress > 2500 or progressKey.empty or not progressKey.goNext()
+                set progress = progress + 1
+            endloop
+            
+            if (0 == progressKey.key1) then
+                set progressKey.key1 = k1
+                set progressKey.key2 = k2
+                set progressKey.key3 = k3
+            endif
+            
+            return progress
+        endmethod
+        
+        private method flush takes nothing returns nothing
+            loop
+                call Memory.flushKey(this)
+                
+                set this = queue.next
+                exitwhen 0 == this
+            endloop
+        endmethod
+        
+        //takes current position in memory (index) and returns new position
+        method dump takes Data data, integer pid, integer index, integer remainingData, integer end returns integer
+            local integer count = 0
+            
+            //dump buffer to table
+            loop
+                call data.write(pid, index, dumpKey.read())
+                set index = index + 1
+            
+                call dumpKey.goNext()
+                exitwhen index == end
+                
+                set count = count + 1
+                if (count - count/1500*1500 == 0) then
+                    call TriggerSyncStart()
+                endif
+            endloop
+            
+            //flush buffer
+            call flush()
+            
+            //reset keys
+            call writeKey.reset()
+            call progressKey.reset()
+            call dumpKey.reset()
+            
+            //contract buffer
+            loop
+                exitwhen queue.size - Memory.KEY_LENGTH_2D < remainingData
+                call queue.contract()
+            endloop
+            
+            return index
+        endmethod
+        
+        method write takes integer v returns boolean
+            call writeKey.write(v)
+            return writeKey.goNext()
+        endmethod
+
+        static method create takes nothing returns thistype
+            local thistype this = BufferQueue.create()
+            
+            set writeKey = BufferKey.create(this)
+            set progressKey = BufferKey.create(this)
+            set dumpKey = BufferKey.create(this)
+            
+            return this
+        endmethod
+        
+        method destroy takes nothing returns nothing
+            call flush()
+        
+            call queue.destroy()
+            
+            call writeKey.destroy()
+            call progressKey.destroy()
+            call dumpKey.destroy()
+        endmethod
+    endstruct
+//! endtextmacro
+[/jass]
+
+[b]Packet[/b]
+[jass]
+//! textmacro PACKET
+    struct Packet extends array
+        private static integer instanceCount = 0
+        private static integer array recycler
+        
+        private static method allocate takes nothing returns thistype
+            local thistype this = recycler[0]
+            
+            if (0 == this) then
+                set this = instanceCount + 1
+                if (this == Memory.KEY_LENGTH) then
+                    loop
+                        exitwhen 0 != recycler[0]
+                        call TriggerSyncStart()
+                        call TriggerSyncReady()
+                    endloop
+                    
+                    set this = recycler[0]
+                    set recycler[0] = recycler[this]
+                else
+                    set instanceCount = this
+                endif
+            else
+                set recycler[0] = recycler[this]
+            endif
+            
+            return this
+        endmethod
+        
+        private method deallocate takes nothing returns nothing
+            set recycler[this] = recycler[0]
+            set recycler[0] = this
+        endmethod
+        
+        private method synchronize takes integer data, boolean source returns nothing
+            local Thread thread = Thread.create()
+            local integer syncPlayer = 11
+            
+            if (source) then
+                call Memory.write(0, GetPlayerId(GetLocalPlayer()), this, data)
+            else
+                call Memory.writeB(0, GetPlayerId(GetLocalPlayer()), this)
+            endif
+            
+            loop
+                if (-1 == syncPlayer) then
+                    exitwhen thread.synced
+                elseif ((GetPlayerSlotState(Player(syncPlayer)) != PLAYER_SLOT_STATE_PLAYING or GetPlayerController(Player(syncPlayer)) != MAP_CONTROL_USER) or (Memory.has(0, syncPlayer, this) or Memory.hasB(0, syncPlayer, this))) then
+                    set syncPlayer = syncPlayer - 1
+                    if (-1 == syncPlayer) then
+                        call thread.sync()
+                    endif
+                endif
+                call TriggerSyncReady()
+            endloop
+            
+            call thread.destroy()
+        endmethod
+        
+        private method flush takes nothing returns nothing
+            local integer i = 11
+            
+            loop
+                call Memory.flush(0, i, this)
+            
+                exitwhen 0 == i
+                set i = i - 1
+            endloop
+        endmethod
+        
+        static method broadcast takes integer data, boolean source returns Packet
+            local thistype this = allocate()
+            
+            call synchronize(data, source)
+            
+            return this
+        endmethod
+        
+        method operator [] takes integer playerId returns integer
+            return Memory.read(0, playerId, this)
+        endmethod
+        method has takes integer playerId returns boolean
+            return Memory.has(0, playerId, this)
+        endmethod
+        
+        method destroy takes nothing returns nothing
+            call flush()
+            call deallocate()
+        endmethod
+    endstruct
+//! endtextmacro
+[/jass]
+
+[b]Stream[/b]
+[jass]
+//! textmacro STREAM
+    private struct GlobalStream extends array
+        private static integer instanceCount = 0
+        private static integer array recycler
+        
+        integer size           //size of stream (amount of data)
+        integer synchronized   //how much data has been synchronized
+        integer remaining      //how much data still needs to be broadcasted
+        
+        integer bufferWritten  //how much data has been written to buffer
+        integer dataWritten    //how much data has been written to memory
+        
+        readonly Buffer buffer
+        
+        static method create takes integer size returns thistype
+            local thistype this = recycler[0]
+            
+            if (0 == this) then
+                set this = instanceCount + 1
+                set instanceCount = this
+            else
+                set recycler[0] = recycler[this]
+            endif
+            
+            set this.size = size
+            set this.remaining = size
+            set this.buffer = Buffer.create()
+            
+            return this
+        endmethod
+        
+        method destroy takes nothing returns nothing
+            set this.synchronized = 0
+            
+            set this.bufferWritten = 0
+            set this.dataWritten = 0
+            
+            call buffer.destroy()
+            
+            set recycler[this] = recycler[0]
+            set recycler[0] = this
+        endmethod
+    endstruct
+    
+    private struct Array extends array
+        private static hashtable memory = InitHashtable()
+        
+        method operator [] takes integer index returns GlobalStream
+            return LoadInteger(memory, this, index)
+        endmethod
+        method operator []= takes integer index, integer value returns nothing
+            call SaveInteger(memory, this, index, value)
+        endmethod
+        method flush takes nothing returns nothing
+            call FlushChildHashtable(memory, this)
+        endmethod
+    endstruct
+    
+    private struct Stream extends array
+        //global
+        private static integer instanceCount = 0
+        private static integer array recycler
+        
+        Data memory                         //synchronized data
+        integer broadcastingPlayerCount
+        
+        method operator size takes nothing returns Array
+            return this
+        endmethod
+        method operator stream takes nothing returns Array
+            return this
+        endmethod
+        
+        method operator [] takes integer playerId returns GlobalStream
+            return memory.read(playerId, this)
+        endmethod
+        
+        private method createStreams takes integer amountOfData returns nothing
+            local Packet packet = Packet.broadcast(amountOfData, amountOfData != 0)
+            local integer playerId = 11
+            
+            loop
+                if (packet[playerId] > 0) then
+                    set stream[playerId] = GlobalStream.create(packet[playerId])
+                    
+                    set broadcastingPlayerCount = broadcastingPlayerCount + 1
+                endif
+            
+                exitwhen 0 == playerId
+                set playerId = playerId - 1
+            endloop
+            
+            call packet.destroy()
+        endmethod
+        
+        static method create takes integer amountOfData returns thistype
+            local thistype this = recycler[0]
+            
+            if (0 == this) then
+                set this = instanceCount + 1
+                set instanceCount = this
+            else
+                set recycler[0] = recycler[this]
+            endif
+            
+            call createStreams(amountOfData)
+            set memory = Data.create()
+            
+            return this
+        endmethod
+        
+        method dump2 takes nothing returns nothing
+            local integer playerId = 11
+            local GlobalStream stream
+            
+            loop
+                set stream = Stream(this).stream[playerId]
+                if (stream != 0) then
+                    set stream.dataWritten = stream.buffer.dump(memory, playerId, stream.dataWritten, stream.remaining, stream.dataWritten + stream.bufferWritten)
+                    set stream.bufferWritten = 0
+                    
+                    call TriggerSyncReady()
+                endif
+                
+                exitwhen 0 == playerId
+                set playerId = playerId - 1
+            endloop
+        endmethod
+        
+        method updateStreams takes nothing returns boolean
+            local integer playerId = 11
+            local boolean synchronize = false
+            local GlobalStream stream
+            
+            loop
+                set stream = Stream(this).stream[playerId]
+                if (stream != 0) then
+                    if (GetPlayerSlotState(Player(playerId)) == PLAYER_SLOT_STATE_PLAYING and GetPlayerController(Player(playerId)) == MAP_CONTROL_USER) then
+                        set stream.bufferWritten = stream.bufferWritten + BURST_SIZE
+                        
+                        if (stream.bufferWritten >= stream.buffer.size) then
+                            set stream.remaining = stream.remaining + stream.bufferWritten - stream.buffer.size
+                            set stream.bufferWritten = stream.buffer.size
+                            
+                            set stream.remaining = stream.remaining - BURST_SIZE
+                            if (stream.remaining < 0) then
+                                set stream.bufferWritten = stream.bufferWritten + stream.remaining
+                                set stream.remaining = 0
+                            endif
+                            
+                            if (stream.remaining == 0 or not stream.buffer.expand()) then
+                                set synchronize = true
+                            endif
+                        else
+                            set stream.remaining = stream.remaining - BURST_SIZE
+                            if (stream.remaining < 0) then
+                                set stream.bufferWritten = stream.bufferWritten + stream.remaining
+                                set stream.remaining = 0
+                            endif
+                            
+                            if (stream.remaining == 0) then
+                                set synchronize = true
+                            endif
+                        endif
+                    else
+                        call stream.destroy()
+                        set Stream(this).stream[playerId] = 0
+                        
+                        set Stream(this).broadcastingPlayerCount = Stream(this).broadcastingPlayerCount - 1
+                    endif
+                endif
+                
+                exitwhen 0 == playerId
+                set playerId = playerId - 1
+            endloop
+            
+            return synchronize
+        endmethod
+        
+        method cleanStreams takes nothing returns nothing
+            local integer playerId = 11
+            local GlobalStream stream
+            
+            loop
+                set stream = Stream(this).stream[playerId]
+                if (0 != stream and stream.remaining == 0) then
+                    set size[playerId - 100] = stream.size
+                
+                    call stream.destroy()
+                    
+                    set Stream(this).stream[playerId] = 0
+                        
+                    set Stream(this).broadcastingPlayerCount = Stream(this).broadcastingPlayerCount - 1
+                endif
+
+                exitwhen 0 == playerId
+                set playerId = playerId - 1
+            endloop
+        endmethod
+        
+        method destroy takes nothing returns nothing
+            call memory.destroy()
+            call stream.flush()
+            
+            set broadcastingPlayerCount = 0
+            
+            set recycler[this] = recycler[0]
+            set recycler[0] = this
+        endmethod
+    endstruct
+    
+    private struct PlayerSize extends array
+        method operator [] takes integer playerId returns integer
+            return Stream(this).size[playerId - 100]
+        endmethod
+    endstruct
+    
+    module StreamMod
+        method read takes integer playerId, integer index returns integer
+            return Stream(this).memory.read(playerId, index)
+        endmethod
+        method operator size takes nothing returns PlayerSize
+            return this
+        endmethod
+        
+        private method burst takes integer remainingData, Buffer buffer returns integer
+            local integer remainingBroadcasts = BURST_SIZE
+            
+            loop
+                set remainingData = remainingData - 1
+                set remainingBroadcasts = remainingBroadcasts - 1
+                exitwhen not buffer.write(getNextBroadcast()) or 0 == remainingBroadcasts or 0 == remainingData
+            endloop
+            
+            return remainingData
+        endmethod
+        
+        private method dump takes nothing returns nothing
+            local Thread thread = Thread.create()
+            local boolean array synced
+            local GlobalStream stream
+            local integer syncPlayer
+            local integer syncCount = 0
+            
+            loop
+                set syncPlayer = 11
+                loop
+                    set stream = Stream(this).stream[syncPlayer]
+                    if (0 == stream) then
+                        static if thistype.broadcastPercentComplete.exists then
+                            if (GetPlayerSlotState(Player(syncPlayer)) == PLAYER_SLOT_STATE_PLAYING and GetPlayerController(Player(syncPlayer)) == MAP_CONTROL_USER) then
+                                call broadcastPercentComplete(syncPlayer, 100)
+                            else
+                                call broadcastPercentComplete(syncPlayer, -1)
+                            endif
+                        endif
+                    else
+                        if (not synced[syncPlayer]) then
+                            set stream.synchronized = stream.synchronized + stream.buffer.getProgress.evaluate()
+                            
+                            if ((GetPlayerSlotState(Player(syncPlayer)) != PLAYER_SLOT_STATE_PLAYING or GetPlayerController(Player(syncPlayer)) != MAP_CONTROL_USER) or (stream.synchronized - stream.bufferWritten == stream.dataWritten)) then
+                                set synced[syncPlayer] = true
+                                set syncCount = syncCount + 1
+                                if (syncCount == Stream(this).broadcastingPlayerCount) then
+                                    call thread.sync()
+                                endif
+                            endif
+                        endif
+                        static if thistype.broadcastPercentComplete.exists then
+                            call broadcastPercentComplete(syncPlayer, (stream.synchronized + 0.)/stream.size*100)
+                        endif
+                    endif
+                    
+                    exitwhen 0 == syncPlayer
+                    set syncPlayer = syncPlayer - 1
+                endloop
+                call TriggerSyncReady()
+                
+                exitwhen thread.synced
+            endloop
+            
+            call thread.destroy()
+            
+            call Stream(this).dump2()
+        endmethod
+        
+        method synchronize takes nothing returns nothing
+            local GlobalStream stream = Stream(this).stream[GetPlayerId(GetLocalPlayer())]
+            local integer remaining = stream.size
+            local Buffer buffer = stream.buffer
+            local boolean source = remaining != 0
+            
+            loop
+                if (source) then
+                    set remaining = burst(remaining, buffer)
+                    
+                    if (0 == remaining) then
+                        set source = false
+                    endif
+                endif
+                call TriggerSyncReady()
+                
+                if (Stream(this).updateStreams()) then
+                    call dump()
+                endif
+                
+                call Stream(this).cleanStreams()
+                
+                exitwhen 0 == Stream(this).broadcastingPlayerCount
+            endloop
+        endmethod
+        
+        static method allocate takes integer amountOfData returns thistype
+            return Stream.create(amountOfData)
+        endmethod
+        method deallocate takes nothing returns nothing
+            call Stream(this).destroy()
+        endmethod
+    endmodule
+//! endtextmacro
+[/jass]
+        [/center]
+        [color=#332c29]____________________________________________________________________________________________________[/color]
+      [/td][/otable][/center][/tab]
+      [tab=Demonstration][center][otable][td]
+        [center]
+        [url=http://www.hiveworkshop.com/forums/pastebin_data/ruiar5/_files/Network.w3x]Demo Map[/url]
+
+[b]Packet[/b]
+[jass]
+struct PacketTest extends array
+    private static method onInit takes nothing returns nothing
+        call init.execute()
+    endmethod
+    private static method init takes nothing returns nothing
+        call WaitForGameToStart()
+        call test.execute()
+    endmethod
+    
+    private static method test takes nothing returns nothing
+        local integer i = -1
+        local Packet packet
+        local integer playerId = 11
+        
+        if (GetLocalPlayer() == Player(0)) then
+            set i = 5
+        elseif (GetLocalPlayer() == Player(1)) then
+            set i = 12
+        endif
+        
+        set packet = Packet.broadcast(i, i != -1)
+        loop
+            if (packet.has(playerId)) then
+                call DisplayTimedTextToPlayer(GetLocalPlayer(),0,0,60,I2S(playerId)+&quot;: &quot;+I2S(packet[playerId]))
+            endif
+        
+            exitwhen 0 == playerId
+            set playerId = playerId - 1
+        endloop
+    endmethod
+endstruct
+[/jass]
+
+[b]Stream[/b]
+[jass]
+struct StreamTest extends array
+    private integer index
+    private integer low
+    private static constant integer SIZE = 5000
+    
+    private method getNextBroadcast takes nothing returns integer
+        set index = index + 1
+        return index*15 + GetPlayerId(GetLocalPlayer()) + 1
+    endmethod
+    private method broadcastPercentComplete takes integer playerId, real percent returns nothing
+        if (playerId &gt;= low) then
+            call ClearTextMessages()
+        endif
+        set low = playerId
+        
+        if (GetPlayerSlotState(Player(playerId)) == PLAYER_SLOT_STATE_PLAYING and GetPlayerController(Player(playerId)) == MAP_CONTROL_USER) then
+            call DisplayTimedTextToPlayer(GetLocalPlayer(),0,0,60000,GetPlayerName(Player(playerId))+&quot;: &quot; + R2S(percent) + &quot;%&quot;)
+        endif
+    endmethod
+
+    implement StreamMod
+    
+    static method create takes nothing returns thistype
+        local thistype this = allocate(SIZE)
+        
+        set low = 0
+        set index = 0
+        
+        return this
+    endmethod
+    
+    method destroy takes nothing returns nothing
+        call deallocate()
+    endmethod
+endstruct
+        [/jass][/center]
+        [color=#332c29]____________________________________________________________________________________________________[/color]
+      [/td][/otable][/center][/tab]
+    [/tabs][/center][/td]
+    [tdalt][/tdalt]
+  [/tr]
+  [tr]
+    [tdalt][/tdalt]
+    [td][color=#332c29].[/color][/td]
+    [tdalt][/tdalt]
+  [/tr]
+[/otable]

@@ -1,0 +1,398 @@
+Many people continue to ask me what the difference is between [ljass]struct Hello[/ljass] and [ljass]struct Hello extends array[/ljass] is.
+
+In vJASS, regular structs create some extra code in the background to make themselves work.
+
+[jass]
+struct a
+endstruct
+[/jass]
+
+outputs
+
+[jass]
+constant integer si__a=1
+integer si__a_F=0
+integer si__a_I=0
+integer array si__a_V
+
+//Generated allocator of a
+function s__a__allocate takes nothing returns integer
+ local integer this=si__a_F //first node on recycle stack
+    if (this!=0) then
+        set si__a_F=si__a_V[this] //set stack to next node (like stack.next)
+    else
+        set si__a_I=si__a_I+1
+        set this=si__a_I
+    endif
+    if (this>8190) then //protection against too many structs
+        return 0
+    endif
+
+    set si__a_V[this]=-1 //set stack to -1 (stack.next = -1)
+ return this
+endfunction
+
+//Generated destructor of a
+function s__a_deallocate takes integer this returns nothing
+    if this==null then //don't deallocate null instance
+        return
+    elseif (si__a_V[this]!=-1) then //double free protection
+        return
+    endif
+    set si__a_V[this]=si__a_F //set this.next = stack
+    set si__a_F=this //set stack = this
+endfunction
+[/jass]
+
+[jass]
+struct b extends a
+endstruct
+[/jass]
+
+outputs
+
+[jass]
+constant integer si__a=1
+integer si__a_F=0
+integer si__a_I=0
+integer array si__a_V
+constant integer si__b=2
+integer array si__a_type
+trigger array st__a_onDestroy //Trigger array?!?!
+integer f__arg_this
+
+//Generated allocator of a
+function s__a__allocate takes nothing returns integer
+ local integer this=si__a_F
+    if (this!=0) then
+        set si__a_F=si__a_V[this]
+    else
+        set si__a_I=si__a_I+1
+        set this=si__a_I
+    endif
+    if (this>8190) then
+        return 0
+    endif
+
+    set si__a_type[this]=1
+    set si__a_V[this]=-1
+ return this
+endfunction
+
+//Generated destructor of a
+function sc__a_deallocate takes integer this returns nothing
+    if this==null then
+        return
+    elseif (si__a_V[this]!=-1) then
+        return
+    endif
+    set f__arg_this=this
+    call TriggerEvaluate(st__a_onDestroy[si__a_type[this]]) //AHH!!
+    set si__a_V[this]=si__a_F
+    set si__a_F=this
+endfunction
+
+//Generated allocator of b
+function s__b__allocate takes nothing returns integer
+ local integer this=s__a__allocate()
+ local integer kthis //why??
+    if(this==0) then
+        return 0
+    endif
+    set si__a_type[this]=2
+    set kthis=this //... doesn't actually do anything
+
+ return this
+endfunction
+[/jass]
+
+As can be seen, trigger evaluations pop up and useless variables get generated. 
+
+[jass]
+struct a extends array
+endstruct
+[/jass]
+
+generates
+
+[ljass]constant integer si__a=1[/ljass]
+
+Not bad, but this means that this sort of thing will no longer work
+[jass]
+local a myStruct = a.create()
+call myStruct.destroy()
+[/jass]
+
+meaning that the allocation and deallocation of structs is left up to the coders.
+
+So let's look on how structs are actually allocated (getting rid of the virtually useless double free protection and getting rid of allocate/deallocate as they might as well be put into create and destroy).
+
+As structs are created, the total number of structs generated continues to increase. A counter is needed in order to track how many structs have been created.
+
+[ljass]private static integer instanceCount = 0[/ljass]
+
+As structs are destroyed, their instances need to be recycled.
+
+[jass]
+private static thistype recycle = 0 //next recycled instance
+private thistype recycleNext //recycled stack
+[/jass]
+
+[jass]
+struct MyStruct extends array
+    private static integer instanceCount = 0
+    private static thistype recycle = 0
+    private thistype recycleNext
+
+    static method create takes nothing returns thistype
+        local thistype this
+
+        //first check to see if there are any structs waiting to be recycled
+        if (recycle == 0) then
+            //if recycle is 0, there are no structs, so increase instance count
+            set instanceCount = instanceCount + 1
+            set this = instanceCount
+        else
+            //a struct is waiting to be recycled, so use it
+            set this = recycle
+            set recycle = recycle.recycleNext
+        endif
+
+        //perform creation code
+
+        return this
+    endmethod
+
+    method destroy takes nothing returns nothing
+        //add to recycle stack
+        set recycleNext = recycle
+        set recycle = this
+    endmethod
+endstruct
+[/jass]
+
+Code output from above (does same thing as first example w/o double free protection)
+
+[jass]
+constant integer si__MyStruct=1
+integer s__MyStruct_instanceCount= 0
+integer s__MyStruct_recycle= 0
+integer array s__MyStruct_recycleNext
+
+function s__MyStruct_create takes nothing returns integer
+    local integer this
+    if ( s__MyStruct_recycle == 0 ) then
+        set s__MyStruct_instanceCount=s__MyStruct_instanceCount + 1
+        set this=s__MyStruct_instanceCount
+    else
+        set this=s__MyStruct_recycle
+        set s__MyStruct_recycle=s__MyStruct_recycleNext[s__MyStruct_recycle]
+    endif
+    return this
+endfunction
+
+function s__MyStruct_destroy takes integer this returns nothing
+    set s__MyStruct_recycleNext[this]=s__MyStruct_recycle
+    set s__MyStruct_recycle=this
+endfunction
+[/jass]
+
+A bit more work, but a bit more optimal. What about extending structs?
+
+Extending structs is done with delegates (also allows members to be overriden).
+
+[jass]
+struct Mystruct2 extends array
+    //delegate stores pointers to parent struct
+    //this means that one can extend off of multiple structs
+    private delegate MyStruct MyStruct
+    
+    static method create takes nothing returns thistype
+        //base instance off of parent struct
+        local thistype this = MyStruct.create()
+        //store pointer into delegate
+        set MyStruct = this
+        
+        return this
+    endmethod
+    
+    method destroy takes nothing returns nothing
+        //simply destroy
+        call MyStruct.destroy()
+    endmethod
+endstruct
+[/jass]
+
+Outputs
+[jass]
+constant integer si__MyStruct=1
+integer s__MyStruct_instanceCount= 0
+integer s__MyStruct_recycle= 0
+integer array s__MyStruct_recycleNext
+constant integer si__Mystruct2=2
+integer array s__Mystruct2_MyStruct
+
+function s__MyStruct_create takes nothing returns integer
+	local integer this
+	if ( s__MyStruct_recycle == 0 ) then
+		set s__MyStruct_instanceCount=s__MyStruct_instanceCount + 1
+		set this=s__MyStruct_instanceCount
+	else
+		set this=s__MyStruct_recycle
+		set s__MyStruct_recycle=s__MyStruct_recycleNext[s__MyStruct_recycle]
+	endif
+	return this
+endfunction
+
+function s__MyStruct_destroy takes integer this returns nothing
+	set s__MyStruct_recycleNext[this]=s__MyStruct_recycle
+	set s__MyStruct_recycle=this
+endfunction
+
+function s__Mystruct2_create takes nothing returns integer
+	local integer this= s__MyStruct_create()
+	set s__Mystruct2_MyStruct[this]=this
+	return this
+endfunction
+
+function s__Mystruct2_destroy takes integer this returns nothing
+	call s__MyStruct_destroy(s__Mystruct2_MyStruct[this])
+endfunction
+[/jass]
+
+No trigger arrays, no trigger evaluations, and no wasted local variables. It even allows you to make one struct extend off of multiple structs.
+
+Multi-Struct Extension
+[jass]
+struct MyStruct extends array
+    private static integer instanceCount = 0
+    private static thistype recycle = 0
+    private thistype recycleNext
+
+    static method create takes nothing returns thistype
+        local thistype this
+        if (recycle == 0) then
+            set instanceCount = instanceCount + 1
+            set this = instanceCount
+        else
+            set this = recycle
+            set recycle = recycle.recycleNext
+        endif
+        return this
+    endmethod
+
+    method destroy takes nothing returns nothing
+        set recycleNext = recycle
+        set recycle = this
+    endmethod
+endstruct
+
+struct MyStruct2 extends array
+    private static integer instanceCount = 0
+    private static thistype recycle = 0
+    private thistype recycleNext
+
+    static method create takes nothing returns thistype
+        local thistype this
+        if (recycle == 0) then
+            set instanceCount = instanceCount + 1
+            set this = instanceCount
+        else
+            set this = recycle
+            set recycle = recycle.recycleNext
+        endif
+        return this
+    endmethod
+
+    method destroy takes nothing returns nothing
+        set recycleNext = recycle
+        set recycle = this
+    endmethod
+endstruct
+
+struct Mystruct3 extends array
+    private delegate MyStruct MyStruct
+    private delegate MyStruct2 MyStruct2
+    
+    static method create takes nothing returns thistype
+        local thistype this = MyStruct.create()
+        set MyStruct = this
+        
+        //use first pointer as current struct's instance
+        set MyStruct2 = MyStruct2.create()
+        
+        //creation code
+        
+        return this
+    endmethod
+    
+    method destroy takes nothing returns nothing
+        //destroy both structs
+        call MyStruct.destroy()
+        call MyStruct2.destroy()
+    endmethod
+endstruct
+[/jass]
+
+Which happily outputs
+[jass]
+constant integer si__MyStruct=1
+integer s__MyStruct_instanceCount= 0
+integer s__MyStruct_recycle= 0
+integer array s__MyStruct_recycleNext
+constant integer si__MyStruct2=2
+integer s__MyStruct2_instanceCount= 0
+integer s__MyStruct2_recycle= 0
+integer array s__MyStruct2_recycleNext
+constant integer si__Mystruct3=3
+integer array s__Mystruct3_MyStruct
+integer array s__Mystruct3_MyStruct2
+
+function s__MyStruct_create takes nothing returns integer
+	local integer this
+	if ( s__MyStruct_recycle == 0 ) then
+		set s__MyStruct_instanceCount=s__MyStruct_instanceCount + 1
+		set this=s__MyStruct_instanceCount
+	else
+		set this=s__MyStruct_recycle
+		set s__MyStruct_recycle=s__MyStruct_recycleNext[s__MyStruct_recycle]
+	endif
+	return this
+endfunction
+
+function s__MyStruct_destroy takes integer this returns nothing
+	set s__MyStruct_recycleNext[this]=s__MyStruct_recycle
+	set s__MyStruct_recycle=this
+endfunction
+
+
+function s__MyStruct2_create takes nothing returns integer
+	local integer this
+	if ( s__MyStruct2_recycle == 0 ) then
+		set s__MyStruct2_instanceCount=s__MyStruct2_instanceCount + 1
+		set this=s__MyStruct2_instanceCount
+	else
+		set this=s__MyStruct2_recycle
+		set s__MyStruct2_recycle=s__MyStruct2_recycleNext[s__MyStruct2_recycle]
+	endif
+	return this
+endfunction
+
+function s__MyStruct2_destroy takes integer this returns nothing
+	set s__MyStruct2_recycleNext[this]=s__MyStruct2_recycle
+	set s__MyStruct2_recycle=this
+endfunction
+
+
+function s__Mystruct3_create takes nothing returns integer
+	local integer this= s__MyStruct_create()
+	set s__Mystruct3_MyStruct[this]=this
+	set s__Mystruct3_MyStruct2[this]=s__MyStruct2_create()
+	return this
+endfunction
+
+function s__Mystruct3_destroy takes integer this returns nothing
+	call s__MyStruct_destroy(s__Mystruct3_MyStruct[this])
+	call s__MyStruct2_destroy(s__Mystruct3_MyStruct2[this])
+endfunction
+[/jass]
