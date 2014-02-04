@@ -1,0 +1,1 @@
+Does not work properly with unit upgrades that change health/mana max. Your units will die when working with negative bonuses if their health/mana was modified by an upgrade. In fact, it's best to just do all upgrades through Bonus as there may be other bugs that I have not yet discovered.

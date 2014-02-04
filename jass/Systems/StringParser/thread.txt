@@ -1,0 +1,1769 @@
+[center][b][size="6"]String Parser[/size][/b]
+[i]as easy as [ljass]String.parse("1 2 3")[/ljass][/i][/center]
+
+[b]String Parser Tutorial[/b]
+[hidden=""]
+[b]A helpful note for getting the most out of this tutorial[/b]
+	[indent]
+		Don't just read the text/code. Paste the code into the map and run it and put in different arguments (sets of arguments are given too). Also be sure to experiment with the code.
+
+		Keep in mind that the system itself is not complex. The hard part is understanding how to properly use this system.
+	[/indent]
+[list]
+	[b]Chapter 1: Should I use String Parser?[/b]
+	[indent]
+		The first thing you may be wondering is what String Parser does. What you need to understand is that String Parser does too many things to be easily explained. It'd be like asking what JASS does. There's no good way to answer. This means that rather than asking what String Parser does, you should be asking if you need it.
+
+		String Parser was made with in-game commands in mind: commands like -kick and -give. It was made specifically to deal with arguments for those in-game commands, like the [b]blue[/b] in [b]-kick blue[/b] and the [b]1000[/b] in [b]-give 1000[/b].
+
+		String Parser has the capability to determine what types values are. For example, 1000 is an integer. Not only can it determine types, but it can determine what a value can be legally inferred as. For example, 1000 can be treated as an integer, a real, or a string. This makes it extremely useful if you have a command like -give, which only takes an integer value.
+
+		To look at it another way, it allows you to do this for in-game commands.
+		[ljass]function give takes integer gold returns nothing[/ljass]
+
+		Should String Parser be used for all commands? No. Not all commands need type checking, like the -save/-load commands for a save/load system.
+
+		String Parser also has the capability to create new types (think of integer, string, boolean, real when I say types). This means that you could do a color type for a name changing command or a player type for an alliance system ([ljass]type color extends string[/ljass]). It also supports the creation, destruction, and manipulation of string values. For example, blue might be a string value and it might be of type color ([ljass]color blue[/ljass]).
+	[/indent]
+
+	[b]From this point on you will need the Learn String Parser map open[/b]
+	---------------------------------------------------------------------------
+	[indent]
+		Methods in Learn Map:
+		[ljass]static method print takes string s returns nothing[/ljass]
+
+		Variables in Learn Map:
+		[ljass]string str //the inputted string[/ljass]
+
+		Inputting a string into Learn Map:
+		Run the map and type something.
+
+[jass]
+//Characters:
+//  Delimiters: " ", ","
+//
+//  String Delimiter: "
+//
+//  Escape Character: \ 
+//			(escapes only ")
+//			("hello \"bob\"")
+//
+//  Stack characters: ( ), { }, [ ]
+//			(stacks can be in stacks to any depth and of any amount)
+//			stacks must start with either (, {, or [ and end with their matching character ), }, or ]
+//
+//  Ascii Integer Delimiter: ' 
+//			(ascii integers can only be 1 or 4 digits: 'h' or 'hpea')
+[/jass]
+	[/indent]
+	---------------------------------------------------------------------------
+
+	[b]Chapter 2: Seeing String Parser in action[/b]
+	[indent]
+		To get a feel for using the learning map and to get a feel for what String Parser does, let's try out a demonstration.
+
+		In the Execution area, paste this code
+[jass]
+local StringStack stringStack = String.parse(str)
+local integer x = 0
+local StringType stringType
+
+local boolean b
+local integer a
+local integer i
+local real r
+local string s
+
+local string bs
+local string as
+local string is
+local string rs
+local string ss
+
+local string value
+
+local StringStack array stack
+set stack[0] = stringStack
+loop
+	exitwhen stack[x] == 0 and x == 0
+	loop
+		loop
+			exitwhen stack[x].type != StringType.STACK
+			set x = x + 1
+			set stack[x] = stack[x-1].stack
+		endloop
+		loop
+			exitwhen stack[x] != 0
+			if (x == 0) then
+				return false
+			endif
+			set x = x - 1
+			set stack[x] = stack[x].pop() //skip the next stack
+		endloop
+		exitwhen stack[x].type != StringType.STACK
+	endloop
+	
+	set value = stack[x].value
+	set stringType = stack[x].type
+	
+	if (stringType.is(StringType.NULL)) then
+		set s = value
+		call DisplayTextToPlayer(GetLocalPlayer(), 0, 0, stringType.name + " as null: " + s)
+	endif
+	if (stringType.is(StringType.BOOLEAN)) then
+		set b = S2B(value)
+		set bs = B2S(b)
+		call DisplayTextToPlayer(GetLocalPlayer(), 0, 0, stringType.name + " as boolean: " + bs)
+	endif
+	if (stringType.is(StringType.ASCII)) then
+		set a = S2A(value)
+		set as = A2S(a)
+		call DisplayTextToPlayer(GetLocalPlayer(), 0, 0, stringType.name + " as ascii: " + as)
+	endif
+	if (stringType.is(StringType.INTEGER)) then
+		set i = S2I(value)
+		set is = I2S(i)
+		call DisplayTextToPlayer(GetLocalPlayer(), 0, 0, stringType.name + " as integer: " + is)
+	endif
+	if (stringType.is(StringType.REAL)) then
+		set r = S2R(value)
+		set rs = R2S(r)
+		call DisplayTextToPlayer(GetLocalPlayer(), 0, 0, stringType.name + " as real: " + rs)
+	endif
+	if (stringType.is(StringType.STRING)) then
+		call DisplayTextToPlayer(GetLocalPlayer(), 0, 0, stringType.name + " as string: " + value)
+	endif
+	
+	//set node = node.next
+	set stack[x] = stack[x].pop()
+endloop
+
+//call stringStack.destroy()
+[/jass]
+
+		In the Initialization Area, paste in this code
+[jass]
+call print("type in a set of values to see String Parser in action\n\" around strings, ' around ascii integers, separate values that don't have delimiters with the \"" + " " + "\" or \",\" char")
+[/jass]
+
+		Run the map and follow the directions.
+	[/indent]
+
+	[b]Chapter 3: Parsing a string[/b]
+	[indent]
+		The most basic type of parsing is filter parsing. This is done with String.filter
+[jass]
+static method filter takes string toFilter, string filterChar, boolean onlyAtStart returns string
+//toFilter is the string to be filtered
+//filterChar is the character to be filtered out of the string
+//onlyAtStart determines whether to filter a character out until another character is found or to filter the character out through the entire string
+[/jass]
+
+		Let's try filtering out all -'s and starting " " from all of our strings
+[jass]
+local string s = String.filter(str, "-", false)
+set s = String.filter(s, " ", true)
+call print(s)
+[/jass]
+
+		Try typing
+[code]
+		   -hello---omg     -    --wow
+[/code]
+
+		It should output
+[code]
+helloomg         wow
+[/code]
+
+		String.parse is used to fully parse strings. This method takes a string and parses it into a stack (google stack if you don't know what it is).
+
+		For a demonstration, we will be using the parse method in conjunction with the toString method (if you don't know what toString traditionally does, google it).
+
+		In the execution area, paste this code into your map.
+[jass]
+call print(String.parse(str).toString()) //parse the string into a stack and convert stack into a string
+[/jass]
+
+		save the map, run it, and then type something like 1 2 3.
+		It should output
+[code]
+1 2 3
+[/code]
+
+		So at this point this may not seem very useful. We need a way to use the values.
+
+		String Parser outputs its results into a stack of type StringStack. The StringStack includes
+[jass]
+method operator next takes nothing returns StringStack //returns next node on stack
+method operator value takes nothing returns string //returns string value of node
+method pop takes nothing returns StringStack //pops off current node and returns the next node
+method destroy takes nothing returns nothing //destroys the stack from current node onwards
+[/jass]
+
+		So, using these methods, let's see if we can use inputted values.
+
+		Try this code in Execution area
+[jass]
+local StringStack stack = String.parse(str) //parse the string into a stack
+
+//where value is the string value on the stack
+local string arg1 = stack.value //set arg1 to stack[0].value
+local string arg2 = stack.next.value //set arg2 to stack[1].value
+local string arg3 = stack.next.next.value //set arg3 to stack[2].value
+
+//print args
+call print(arg1)
+call print(arg2)
+call print(arg3)
+
+//destroy the stack
+call stack.destroy()
+[/jass]
+
+		Now try typing in 1 2 3 and see what happens.
+		It should output
+[code]
+1
+2
+3
+[/code]
+
+		What if we wanted to handle any amount of arguments? This is where loops start coming into play.
+[jass]
+local StringStack stack = String.parse(str) //parse string into a stack
+local string array args //declare a string array called args
+local integer x = 0 //declare integer called x and initialize it to 0
+
+//store stack into args array
+loop
+	exitwhen stack == 0 //exitwhen stack is null
+	set args[x] = stack.value //set args to the value of the stack
+	set x = x + 1
+	set stack = stack.pop() //pop off current node and return next node so that the stack is destroyed by end of the loop
+endloop
+
+//loop backwards over all strings in args and print them
+loop
+	exitwhen x == 0
+	set x = x - 1
+	call print(args[x])
+endloop
+[/jass]
+
+		Now try typing in 1 2 3 4 5
+		This shuold output (remember printing is done backwards in this case)
+[code]
+5
+4
+3
+2
+1
+[/code]
+
+		StringStack also offers operators for getting the total elements in the stack
+[jass]
+method operator count takes nothing returns integer //returns remaining elements in stack
+[/jass]
+
+		So now let's try making a command that will only take 2 arguments
+[jass]
+local StringStack stack = String.parse(str)
+if (stack.count == 2) then
+	call print("you inputted: " + stack.value + "," + stack.next.value)
+else
+	call print("this command only takes 2 arguments, not " + I2S(stack.count) + "!!")
+endif
+[/jass]
+	[/indent]
+	[b]Chapter 4: String Type Comparisons[/b]
+	[indent]
+		The true power of String Parser is type checking.
+[jass]
+local unit u = CreateUnit(Player(0), 'hpea', 0, 0, 0)
+local widget w
+set w = u //works, all units are widgets
+set u = w //does not work, not all widgets are units
+[/jass]
+
+		Type checking is done with the StringType struct. This struct includes
+[jass]
+method is takes thistype ofType returns boolean //sees if a type is legally a type
+static constant integer NULL
+static constant integer BOOLEAN
+static constant integer ASCII
+static constant integer INTEGER
+static constant integer REAL
+static constant integer STRING
+static constant integer STACK
+[/jass]
+
+		And the type operator in the StringStack struct.
+		[ljass]method operator type takes nothing returns StringType[/ljass]
+
+		So to give it a whirl, why not print out all integer values in the stack
+[jass]
+local StringStack stack = String.parse(str)
+
+loop
+	exitwhen stack == 0 //exitwhen stack is null
+	if (stack.type.is(StringType.INTEGER)) then
+		call print(stack.value)
+	endif
+	set stack = stack.pop() //pop off current node and return next node so that the stack is destroyed by end of the loop
+endloop
+[/jass]
+
+		Try typing 1 1.1 2 2.0 3
+		This should output
+[code]
+1
+2
+3
+[/code]
+
+		Another example
+[jass]
+local StringStack stack = String.parse(str)
+
+loop
+	exitwhen stack == 0 //exitwhen stack is null
+	if (stack.type.is(StringType.REAL)) then
+		call print(stack.value)
+	endif
+	set stack = stack.pop() //pop off current node and return next node so that the stack is destroyed by end of the loop
+endloop
+[/jass]
+
+		Try typing 1 1.1 2 2.0 3
+		This should output (remember, integers are also reals)
+[code]
+1
+1.1
+2
+2.0
+3
+[/code]
+
+		Let's try to use StringParser for a more real situation, like adding an integer and an ascii integer and displaying the result.
+		The layout below is a very common layout for commands.
+[jass]
+//takes
+//integer ascii boolean
+
+local StringStack stack = String.parse(str)
+local integer i //stores first argument
+local integer a //stores second argument
+local boolean display //stores third argument
+local string result = "invalid input" //stores the result
+
+//first see if the first value is an integer
+if (stack.type.is(StringType.INTEGER)) then
+	set i = S2I(stack.value) //set i to first value as an integer
+	set stack = stack.pop() //pop stack and go to next node
+	
+	//see if second value is an ascii integer ('hpea' or w/e)
+	if (stack.type.is(StringType.ASCII)) then
+		set a = S2A(stack.value) //S2A converts an ascii string into an ascii integer value. Covered in String Values chapter.
+		set stack = stack.pop() //pop stack and go to next node
+		
+		//see if third value is a boolean (true false on off)
+		if (stack.type.is(StringType.BOOLEAN)) then
+			set display = S2B(stack.value) //S2B converts a string into a boolean value. Covered in String Values chapter.
+			
+			//if display is true, display the result
+			if (display) then
+				set result = I2S(i+a)
+			//if display is false, don't display the result
+			else
+				set result = ""
+			endif
+		endif
+	endif
+endif
+
+call print(result)
+[/jass]
+
+		Another way to get the type of a string is with the typeof method in the String struct
+[jass]
+static method typeof takes string s returns StringType
+[/jass]
+
+		This method will only work on strings with single values like "123" or "'hpea'".
+
+		Let's try a single argument command that will only work with ascii integers ('hpea', 'h')
+
+[jass]
+if (String.typeof(str).is(StringType.ASCII)) then
+	call print("you typed " + str)
+else
+	call print("ascii integers only!")
+endif
+[/jass]
+
+		Try typing 'hfoo'
+		This should output
+[code]
+'hfoo'
+[/code]
+	[/indent]
+	[b]Chapter 5: String Values[/b]
+	[indent]
+		String values are like variables in String Parser. To get a better idea of how String Values work, we'll work with some of the already defined values in String Parser.
+
+		The pre-defined values in String Parser are true, false, on and off. These values are of type StringType.BOOLEAN.
+
+		true, false, on and off may seem like values, but they are really all variables.
+
+		All variables in String Parser are of type integer. Any value greater than 0 is considered as true when inferred as a boolean. Any value less than or equal to 0 is considered false.
+[code]
+integer true = 1 //true
+integer false = 0 //false
+integer on = 1 //true
+integer off = 0 //false
+[/code]
+
+		A variable can be retrieved using the StringValue struct's []. The various properties of the value (type, name, integer value, boolean value) can also be retrieved.
+[jass]
+static method operator [] takes string s returns thistype
+//converts a string into a StringValue
+method operator boolean takes nothing returns boolean
+//integer value as a boolean
+method operator integer takes nothing returns integer
+//integer value
+method operator integer= takes integer value returns nothing
+//sets integer value
+method operator string takes nothing returns string
+//name of variable (string value)
+method operator type takes nothing returns StringType
+//StringType of variable
+[/jass]
+
+		To get a better idea, let's try seeing what's actually stored in true, false, on and off.
+[jass]
+local StringStack stack = String.parse(str)
+local StringValue val
+local string sval //name
+local integer ival //integer value
+local boolean bval //integer value as a boolean
+local StringType tval //type value
+local string tname //name of type
+
+if (stack.count == 1) then
+	set val = StringValue[stack.value]
+	set sval = val.string
+	set ival = val.integer
+	set bval = val.boolean
+	set tval = val.type
+	set tname = tval.name //covered in StringTypes chapter
+	
+	call print("name of variable: " + sval)
+	call print("integer value of variable: " + I2S(ival))
+	call print("boolean value of variable: " + B2S(bval)) //B2S is covered later, but converts a boolean into a string
+	call print("type of variable: " + tname)
+endif
+[/jass]
+
+		Try typing
+[code]
+true
+false
+on
+off
+[/code]
+
+		Values can be created or destroyed. Of pre-defined types, only boolean values can be created.
+[jass]
+method destroy takes nothing returns nothing
+static method create takes string value, StringType valueType, integer convertedValue returns thistype
+//value is the variable's name
+//valueType is the StringType
+//convertedValue is the integer value assigned to the value
+[/jass]
+
+		Let's try creating our own new boolean values called enable and disable.
+
+		Paste this code into the Fields area
+[jass]
+static StringType enable
+static StringType disable
+[/jass]
+
+		Paste this code into Initialization area
+[jass]
+set enable = StringValue.create("enable", StringType.BOOLEAN, 1) //1 for true
+set disable = StringValue.create("disable", StringType.BOOLEAN, 0) //0 for false
+[/jass]
+
+		Execution Code
+[jass]
+local StringStack stack = String.parse(str)
+local StringValue val
+local string sval //name
+local integer ival //integer value
+local boolean bval //integer value as a boolean
+local StringType tval //type value
+local string tname //name of type
+
+if (stack.count == 1) then
+	set val = StringValue[stack.value]
+	set sval = val.string
+	set ival = val.integer
+	set bval = val.boolean
+	set tval = val.type
+	set tname = tval.name //covered in StringTypes chapter
+	
+	call print("name of variable: " + sval)
+	call print("integer value of variable: " + I2S(ival))
+	call print("boolean value of variable: " + B2S(bval)) //B2S is covered later, but converts a boolean into a string
+	call print("type of variable: " + tname)
+	
+	if (bval) then
+		set val.integer = val.integer + 1 //to show values can be changed
+	else
+		set val.integer=  val.integer - 1
+	endif
+endif
+[/jass]
+
+		Try typing enable or disable. This script will also modify the values of the variables every time they are typed.
+
+		Variable types can be converted into strings and back. We've already seen a few conversions in the StringValue struct.
+[jass]
+function S2B takes string s returns boolean
+//converts a string into a boolean value
+
+function B2S takes boolean val returns string
+//converts a boolean value into a string ("true" or "false")
+
+//keep in mind that String.parse only takes ascii integers with ' ' around them.
+//A2S and S2A will not work with surrounding ' '. String.parse automatically removes the surrounding ' '.
+[/jass]
+	[/indent]
+	[b]Chapter 6: String Types[/b]
+	[indent]
+		String Types are types that a String Value can be. String Types were introduced in the String Types comparisons. With the StringType struct, users can create their own new types.
+[jass]
+static method create takes string name, StringType extend returns thistype
+//creates a new StringType of name that extends a StringType
+//name is the name of the StringType
+//extend is what the StringType extends. All StringTypes automatically extend StringType.STRING. Extending 0 will make it extend only StringType.STRING.
+
+method operator name takes nothing returns string
+//the name of the StringType.
+
+method operator extends takes nothing returns integer
+//what the StringType extends
+[/jass]
+
+		Once a type is created, it can never be destroyed or manipulated. Let's work a little with the already defined String Types.
+
+		Place this into the Initialization Area
+[jass]
+local StringType n = StringType.NULL
+local StringType b = StringType.BOOLEAN
+local StringType i = StringType.INTEGER
+local StringType a = StringType.ASCII
+local StringType r = StringType.REAL
+local StringType s = StringType.STRING
+local StringType stack = StringType.STACK
+
+//print type names
+//Types: null, boolean, integer, ascii, real, string, stack
+call print("Types: " + n.name + ", " + b.name + ", " + i.name + ", " + a.name + ", " + r.name + ", " + s.name + ", " + stack.name)
+
+call print("all types extend " + s.name)
+
+//print what the types extend off of
+if (n.extends != 0) then //NULL extends 0
+	call print(n.name + " extends " + n.extends.name)
+endif
+if (b.extends != 0) then //BOOLEAN extends 0
+	call print(b.name + " extends " + b.extends.name)
+endif
+if (i.extends != 0) then //INTEGER extends REAL
+	call print(i.name + " extends " + i.extends.name)
+endif
+if (a.extends != 0) then //ASCII extends 0
+						 //treated as its own type even though it is technically an integer
+						 //ASCII can never be a real because it has no decimals
+	call print(a.name + " extends " + a.extends.name)
+endif
+if (r.extends != 0) then //REAL extends 0
+	call print(r.name + " extends " + r.extends.name)
+endif
+if (s.extends != 0) then //STRING extends 0
+	call print(s.name + " extends " + s.extends.name)
+endif
+if (stack.extends != 0) then //STACK extends 0
+	call print(stack.name + " extends " + stack.extends.name)
+endif
+[/jass]
+
+		So how about creating some types.
+
+		The following example will essentially do this
+[code]
+type color extends string
+type playercolor extends color
+
+playercolor red
+playercolor blue
+color black
+[/code]
+
+		Paste this into the Fields Area
+[jass]
+//following naming conventions for JASS handles
+static StringType color
+static StringType playercolor
+
+static StringValue red
+static StringValue blue
+static StringValue black
+
+static integer colorCount = 0
+static string array colorVal
+
+static string playerName
+static player p = Player(0)
+[/jass]
+
+		Paste this into the initialization area
+[jass]
+//type color extends nothing
+set color = StringType.create("color", 0)
+//type playercolor extends color
+set playercolor = StringType.create("playercolor", color)
+
+//red is a player color
+set colorCount = colorCount + 1
+set red = StringValue.create("red", playercolor, colorCount)
+set colorVal[colorCount] = "|cFFFF0000"
+
+//blue is a player color
+set colorCount = colorCount + 1
+set blue = StringValue.create("blue", playercolor, colorCount)
+set colorVal[colorCount] = "|cFF0000FF"
+
+//black is not a player color, but it is still a color
+set colorCount = colorCount + 1
+set black = StringValue.create("black", color, colorCount)
+set colorVal[colorCount] = "|cFF000000"
+
+set playerName = GetPlayerName(Player(0))
+[/jass]
+
+		Paste this into the execution area
+[jass]
+local StringStack stack = String.parse(str)
+local StringValue val = StringValue[stack.value]
+
+if (stack.count == 1) then
+	//remember that all playercolors are colors because playercolor extends color
+	//not all colors are playercolors. For example, black isn't a playercolor
+	if (stack.type.is(color)) then
+		//these internal ifs are entirely pointless. This is just to show you the proper order when working with types
+		//that extend types. Notice playercolor extends color, so it goes first (color would return true if type was playercolor)
+		if (stack.type.is(playercolor)) then
+			call print("changing player color to a playercolor")
+		elseif (stack.type.is(color)) then
+			call print("changing player color to a color")
+		endif
+		call print("changing player color to " + val.type.name + " " + val.string)
+		call SetPlayerName(Player(0), colorVal[val.integer]+playerName)
+	endif
+endif
+
+call stack.destroy()
+[/jass]
+
+		Try typing
+[code]
+black
+red
+blue
+green
+[/code]
+
+		It should change the color of your name to
+[code]
+black
+red
+blue
+[/code]
+
+		Remember green was never created. It should also say something along the lines of
+[code]
+black is a color
+red is a playercolor
+blue is a playercolor
+[/code]
+
+		Remember, of pre-defined types, only StringType.BOOLEAN can be extended.
+	[/indent]
+	[b]Chapter 7: Stacks[/b]
+	[indent]
+		Up to this point the chapters have only gone over single stacks.
+		[ljass]local StringStack stack = String.parse(str)[/ljass]
+
+		This chapter will go over stacks within stacks. The above will still work for the initial set up, but there will be StringStacks within the StringStack.
+
+		A stack is created any time the parser encounters a (, {, or [. For the input to be valid, each stack must have a matching end: ), }, ].
+
+		For example
+[code]
+(...)
+{...}
+[...]
+[/code]
+
+		Working with these stacks can be very difficult because StringStacks can have StringStacks within them, meaning there could be any number of stacks within the stack you are working on.
+
+		Nightmare of stacks:
+[jass]
+local StringStack stack = String.parse("((((()())())())()) 1 2 3")
+//stack has: (), 1, 2, 3
+//() has: () ()
+//
+//etc etc
+[/jass]
+
+		You may be wondering how on earth you would loop over that. The loop is as ugly and complicated and as hard as it seems.
+
+		The StringStack has 2 remaining operators for handling stacks.
+[jass]
+method operator size takes nothing returns integer
+//returns the total size of the stack. Only works on stack pointers. Will also work on the very first value of the base stack.
+
+method operator stack takes nothing returns thistype
+//returns the first node in a stack. Only works on stack pointers.
+[/jass]
+
+		Stacks are stored as pointers. This means that stack.value on a stack pointer would not return the actual value of the first node in that stack.
+[jass]
+local StringStack stack = String.parse("(1)")
+local string val = stack.value //null
+[/jass]
+
+		The stack operator is used to retrieve the first node within a stack.
+[jass]
+local StringStack stack = String.parse("(1)")
+local StringStack stack2 = stack.stack
+local string val = stack2.value //"1"
+[/jass]
+
+		Luckily, most of the time we will know precisely how many stacks we are handling as well as the values within them
+
+		Let's try a simple example to show values are really within stacks
+[jass]
+local StringStack stack = String.parse(str)
+local string s = ""
+
+loop
+	exitwhen stack == 0
+	if (not stack.type.is(StringType.STACK)) then
+		set s = s + stack.value + " "
+	else
+		set s = s + "(...)" + " "
+	endif
+	set stack = stack.pop()
+endloop
+
+call print(s)
+[/jass]
+
+		Try typing 1(2,3,4,5,6)7
+
+		This should output
+[code]
+1 (...) 7
+[/code]
+
+		Really, there are many many ways to handle stacks within stacks. It all depends on your command.
+
+		To give you the basic idea of a format (infinite stacks within stacks and infinite arguments), here is a JASS example.
+
+		The example adds a command for creating new variables of type istack (integer stack).
+
+		The format is as follows-
+		(varname(...))(varname(...))
+
+		where integers go into the (...) and there can be an infinite number of (varname(...))
+
+		It might have been better as varname(...), but I did the nested stacks to show that it could be done.
+
+		Keep in mind that this sample is somewhat complex, but it will show you the overall architecture of looping through stacks of stacks. This is just about as complicated as it gets.
+
+		Fields
+[jass]
+static integer stackCount = 0
+static integer stackRecycleCount = 0
+static integer array stackRecycle
+StringValue var
+integer val
+thistype next
+thistype last
+
+static StringType istack
+[/jass]
+
+		Initialization
+[jass]
+set istack = StringType.create("istack", 0)
+[/jass]
+
+		Execution
+[jass]
+//stack is a dynamic stack of pairs
+//(varName, ())
+
+//varName refers to the name of a StringValue
+//the () refers to a stack of integer values to be assigned to the variable
+
+//parse the string as normal
+local StringStack base = String.parse(str)
+
+//need a stack array
+local StringStack array stack
+
+//need an argument count for each level
+local integer array args
+
+//need to track which level currently on
+local integer level = 0
+
+//needed to detect changes
+//previous argument count of level
+local integer array preArg
+//previous level
+local integer prevLevel = 0
+
+//local variables specific to this
+/////////////////////
+local thistype this
+local string s
+/////////////////////
+
+//level 0 is always base
+set stack[0] = base
+
+//if an istack is passed in, print it
+if (base.count == 1 and base.type.is(istack)) then
+	set this = thistype(StringValue[base.value].integer).next
+	set s = base.value + " contains: "
+	loop
+		exitwhen this == 0
+		set s = s + I2S(val) + ", "
+		set this = next
+	endloop
+	set level = StringLength(s)
+	set s = SubString(s, 0, level-2)
+	call print(s)
+else //create istacks
+	//external loop handles current level
+	loop
+		//exitwhen current node is 0 and current level is 0
+		//just like
+		//  exitwhen stack == 0
+		//  set stack = stack.pop()
+		exitwhen stack[level] == 0 and level == 0
+		
+		//internal loops handles going through levels
+		loop
+			//this will continue to dive into stacks until it is in the lower possible stack
+			loop
+				//exitwhen the stack type is not a stack pointer
+				exitwhen stack[level].type != StringType.STACK
+				//increase the stack level
+				set level = level + 1
+				//store the previous stack level so that it can be returned to
+				set stack[level] = stack[level-1].stack
+			endloop
+			//this will continue to dive out of stacks until it is in a stack that has nodes in it
+			loop
+				//exitwhen the stack is not empty
+				exitwhen stack[level] != 0
+				//if at the top level and the stack is empty, exit
+				if (level == 0) then
+					exitwhen true
+				endif
+				//decrease the level
+				set level = level - 1
+				set stack[level] = stack[level].pop() //skip stack pointers
+			endloop
+			//given the above loop, it might end up being on a stack pointer, so repeat until
+			//not on a stack pointer
+			exitwhen stack[level].type != StringType.STACK
+		endloop
+		//the level might be 0 and the stack might be empty after the above loops
+		//ex: (())
+		exitwhen level == 0 and stack[level] == 0
+		
+		//increase the arg count for the current level
+		set args[level] = args[level] + 1
+		
+		//code
+		//////////////////////////////////////////////////////////////////
+		//this is where actual code goes
+		//
+		//level: the current depth
+		//args[level]: current arg count of current stack
+		//args[0]: current base arg count
+		//stack[level]: current stack node
+		
+		//prevLevel: the previous level
+		//preArg[level]: the previous argument count of current level
+		//preArg[0]: the previous argument count of base level
+		
+		//this code could be better optimized, but it is set up this way to make it clear what is
+		//happening
+		
+		//level 0 only contains stacks, so the level will always be 1 or 2
+		//level 1 only contains a string value and a stack
+		//level 2 only contains integer values
+		
+		//beause this loop skips stack pointers, level 1 will always be the variable name.
+		//if on level 1, this also means that it is on a new pair because level 1 only has
+		//one value (stack refs are skipped)
+		if (level == 1) then
+			//remember level 1 is a pair, one being a string and the other being a stack of integers
+			if (stack[level].count == 2 and stack[level].next.type.is(StringType.STACK)) then
+				set this = StringValue[stack[level].value].integer
+				if (this == 0) then
+					if (stackRecycleCount != 0) then
+						set stackRecycleCount = stackRecycleCount - 1
+						set this = stackRecycle[stackRecycleCount]
+					else
+						set stackCount = stackCount + 1
+						set this = stackCount
+					endif
+					
+					set next = 0
+					set last = this
+					set var = StringValue.create(stack[level].value, istack, this)
+				endif
+			else
+				//destroy the stack and exit due to invalid input
+				call print("invalid input")
+				call stack[level].destroy()
+				exitwhen true
+			endif
+		elseif (level == 2) then
+			//only takes integer
+			if (stack[level].type.is(StringType.INTEGER)) then
+				if (stackRecycleCount != 0) then
+					set stackRecycleCount = stackRecycleCount - 1
+					set last.next = stackRecycle[stackRecycleCount]
+				else
+					set stackCount = stackCount + 1
+					set last.next = stackCount
+				endif
+				
+				set last = last.next
+				
+				//could handle multiple types with if statements, including stack refs
+				//this only handles integers
+				set last.val = S2I(stack[level].value)
+			else
+				//destroy the stack and exit due to invalid input
+				call print("invalid input")
+				call stack[level].destroy()
+				exitwhen true
+			endif
+		else
+			//destroy the stack and exit due to invalid input
+			call print("invalid input")
+			call stack[level].destroy()
+			exitwhen true
+		endif
+		
+		//////////////////////////////////////////////////////////////////
+		
+		//update previous values
+		set prevLevel = 0
+		loop
+			set preArg[prevLevel] = args[level]
+			exitwhen prevLevel == level
+			set prevLevel = prevLevel + 1
+		endloop
+		
+		//move to next node
+		set stack[level] = stack[level].pop()
+	endloop
+endif
+[/jass]
+
+		Try typing:
+[code]
+(b0(1,2,3))(b1(4,5,6))(b2(8,9,0,5,4))(haha(100, 1))
+[/code]
+
+		It should output nothing, but it will create 3 variables of type istack
+[code]
+b0: 1,2,3
+b1: 4,5,6
+b2: 8,9,0,5,4
+haha: 100,1
+[/code]
+
+		Now type
+[code]
+b0
+b1
+haha
+b2
+[/code]
+
+		It should output the varname and the contents
+[code]
+b0 contains: 1, 2, 3
+b1 contains: 4, 5, 6
+haha contains: 100, 1
+b2 contains: 8, 9, 0, 5, 4
+[/code]
+
+		The practical uses for Stacks are endless and there are an infinite number of examples I could provide ranging from simple uses to extremely complicated uses.
+
+		The above code should help you visualize looping over an infinite number of arguments with an infinite number of stacks within them. You could use the above code for many uses.
+
+		This is a much simpler example that will just loop over all values without keep tracking of arguments, depth, and value changes.
+[jass]
+//looping through all values within stacks of stacks
+function LoopThroughStack takes integer this returns nothing
+	local StringStack array stack
+	set stack[0] = this
+	set this = 0
+	loop
+		exitwhen stack[this] == 0 and this == 0
+		
+		loop
+			loop
+				exitwhen stack[this].type != StringType.STACK
+				set this = this + 1
+				set stack[this] = stack[this-1].stack
+			endloop
+			loop
+				exitwhen stack[this] != 0
+				if (this == 0) then
+					return
+				endif
+				set this = this - 1
+				set stack[this] = stack[this].pop() //skip stack pointers
+			endloop
+			exitwhen stack[this].type != StringType.STACK
+		endloop
+		
+		//code
+		
+		set stack[this] = stack[this].pop()
+	endloop
+endfunction
+[/jass]
+
+		Even the minimum is rather complex.
+	[/indent]
+	[b]Chapter 8: Loop Templates[/b]
+	[indent]
+		Because the Stack loops are so insane...
+
+		Please reply to this thread if you need a loop made and you don't want to make it. Also please be helpful and post your own creations so that they can be added to this chapter.
+	[/indent]
+[/list][/hidden]
+
+[jass]
+library StringParser uses Ascii
+//Ascii- hiveworkshop.com/forums/submissions-414/snippet-ascii-190746/
+////////////////////////////////////////////////////////////////////////
+//Version: 2.2.2.3
+//Author: Nestharus
+//
+//Characters:
+//  Delimiters: " ", ","
+//  String Delimiter: "
+//  Escape Character: \ (escapes only ")
+//  Stack characters: ( ), { }, [ ]
+//  Ascii Integer Delimiter: '
+////////////////////////////////////////////////////////////////////////
+//API
+//      function S2B takes string s returns boolean
+//      function B2S takes boolean val returns string
+//
+//      struct StringValue
+//          readonly boolean boolean
+//          integer integer
+//          readonly string string
+//          readonly StringType type
+//
+//          static method operator [] takes string s returns StringValue
+//          static method create takes string value, StringType valueType, integer convertedValue returns StringValue
+//          method destroy takes nothing returns nothing
+//
+//      struct StringType
+//          static constant integer NULL
+//          static constant integer BOOLEAN
+//          static constant integer ASCII
+//          static constant integer INTEGER
+//          static constant integer REAL
+//          static constant integer STRING
+//          static constant integer STACK
+//
+//          readonly string name
+//          readonly StringType extends
+//
+//          static method create takes string name, StringType extend returns thistype
+//          method is takes StringType ofType returns boolean
+//
+//      struct StringStack
+//          readonly StringStack next
+//          readonly StringStack stack
+//          readonly string value
+//          readonly integer size
+//          readonly integer count
+//          readonly StringType type
+//
+//          method toString takes nothing returns string
+//          method pop takes nothing returns thistype
+//          method destroy takes nothing returns nothing
+//
+//      struct String
+//          static method filter takes string toFilter, string filterChar, boolean onlyAtStart returns string
+//          static method parse takes string val returns StringStack
+//          static method typeof takes string s returns StringType
+////////////////////////////////////////////////////////////////////////
+    globals
+        private integer stringValueCount = 0
+        private integer stringValueRecycleCount = 0
+        private integer array stringValueRecycle
+        
+        private string array stringValues
+        private integer array stringConvertValue
+        private integer array stringValueTypes
+        private integer array stringValueLength
+        private hashtable stringValueIds = InitHashtable()
+        private integer array stringValueId
+        
+        private string array stringTypeNames
+        private integer stringTypeCount
+        private integer array stringTypeExtend
+        private integer array reverseStringTypeExtend
+        
+        private StringStack array stackNext
+        private string array stackValue
+        private integer array stackCount
+        private integer array stackStringType
+        private integer stackInstanceCount = 0
+        private integer array stackRecycle
+        private integer stackRecycleCount = 0
+        private integer array stackStack
+        private integer array stackSize
+    endglobals
+    
+    private function FilterCharacter takes string stringToFilter, string char, boolean onlyAtStart returns string
+        local integer count = 0
+        local integer length = StringLength(stringToFilter)
+        local string newString = ""
+        local string charCheck
+        if (onlyAtStart) then
+            loop
+                exitwhen SubString(stringToFilter, count, count+1) != char
+                set count = count + 1
+            endloop
+            set newString = SubString(stringToFilter, count, length)
+        else
+            loop
+                exitwhen count == length
+                set charCheck = SubString(stringToFilter, count, count+1)
+                if (charCheck != char) then
+                    set newString = newString + charCheck
+                endif
+                set count = count + 1
+            endloop
+        endif
+        
+        return newString
+    endfunction
+    
+    private function Typeof takes string val returns StringType
+        local integer length //length of the string
+        local integer length2
+        local string char //current character being checked
+        local string char2
+        local integer curType = 0 //current type to be returned
+        
+        local boolean foundDecimal //found a decimal place
+        local boolean foundNeg //found a negative sign
+        local boolean foundInt //found an integer
+        local boolean escapeOn //escape is on
+        local boolean escaping //currently escaping
+        
+        local integer id
+        
+        if (val != null) then
+            set curType = stringValueTypes[LoadInteger(stringValueIds, StringHash(val), 0)]
+            
+            if (curType == 0) then
+                set length = StringLength(val)
+                set char = SubString(val, 0, 1)
+                set char2 = SubString(val, length-1, length)
+                
+                if (char == "(" or char == "{" or char == "[") then
+                    if ((char == "(" and char2 == ")") or (char == "{" and char2 == "}") or (char == "[" and char2 == "]")) then
+                        set curType = StringType.STACK
+                    endif
+                else
+                    set curType = StringType.ASCII
+                    if ((length != 3 and length != 6) or char != "'" or char2 != "'") then
+                        if (char == "\"") then
+                            set curType = StringType.STRING
+                            set length2 = 1
+                            set escapeOn = false
+                            set escaping = false
+                            loop
+                                if (length2 == length) then
+                                    return StringType.NULL
+                                endif
+                                set char = SubString(val, length2, length2+1)
+                                if (not escapeOn) then
+                                    if (char =="\\") then
+                                        set escapeOn = true
+                                        set escaping = true
+                                    else
+                                        exitwhen char == "\""
+                                    endif
+                                endif
+                                
+                                if (not escaping) then
+                                    set escapeOn = false
+                                else
+                                    set escaping = false
+                                endif
+                                set length2 = length2 + 1
+                            endloop
+                        else
+                            set curType = StringType.INTEGER
+                            set foundDecimal = false
+                            set foundNeg = false
+                            set foundInt = false
+                            
+                            loop
+                                exitwhen length == 0
+                                set char = SubString(val, length-1, length)
+                                if (foundNeg) then
+                                    return StringType.NULL //no more parsing necessary
+                                elseif (char != "0" and char != "1" and char != "2" and char != "3" and char != "4" and char != "5" and char != "6" and char != "7" and char != "8" and char != "9") then
+                                    if (char == "-" and foundInt) then
+                                        set foundNeg = true
+                                    elseif (char == "." and not foundDecimal) then
+                                        set curType = StringType.REAL
+                                        set foundDecimal = true
+                                    else
+                                        return StringType.NULL
+                                    endif
+                                else
+                                    set foundInt = true
+                                endif
+                                set length = length - 1
+                            endloop
+                        endif
+                    endif
+                endif
+            endif
+        endif
+        
+        return curType
+    endfunction
+    
+    struct StringStack extends array
+        public method operator next takes nothing returns thistype
+            return stackNext[this]
+        endmethod
+        
+        public method operator value takes nothing returns string
+            return stackValue[this]
+        endmethod
+        
+        public method operator stack takes nothing returns thistype
+            return stackStack[this]
+        endmethod
+        
+        public method operator count takes nothing returns integer
+            return stackCount[this]
+        endmethod
+        
+        public method operator size takes nothing returns integer
+            return stackSize[this]
+        endmethod
+        
+        public method operator type takes nothing returns StringType
+            return stackStringType[this]
+        endmethod
+        
+        public method toString takes nothing returns string
+            local string s = null
+            loop
+                exitwhen this == 0
+                if (stackValue[this] != null and stackValue[this] != " " and stackValue[this] != "," and stackValue[this] != "") then
+                    if (s == null) then
+                        set s = stackValue[this]
+                    else
+                        set s = s + " " + stackValue[this]
+                    endif
+                endif
+                set this = stackNext[this]
+            endloop
+            return s
+        endmethod
+        
+        public method destroy takes nothing returns nothing
+            local thistype array stacks
+            local integer i = 0
+            set stacks[0] = this
+            loop
+                exitwhen stacks[i] == 0 and i == 0
+                
+                loop
+                    exitwhen stacks[i].type != StringType.STACK
+                    set i = i + 1
+                    set stacks[i] = stacks[i-1].stack
+                endloop
+                if (stacks[i] == 0) then
+                    set i = i - 1
+                endif
+                
+                set stackRecycle[stackRecycleCount] = stacks[i]
+                set stackRecycleCount = stackRecycleCount + 1
+                set stacks[i] = stacks[i].next
+            endloop
+        endmethod
+        
+        public method pop takes nothing returns thistype
+            set stackRecycle[stackRecycleCount] = this
+            set stackRecycleCount = stackRecycleCount + 1
+            if (type == StringType.STACK) then
+                call stack.destroy()
+            endif
+            return next
+        endmethod
+    endstruct
+    
+    struct String extends array
+        public static method filter takes string toFilter, string filterChar, boolean onlyAtStart returns string
+            return FilterCharacter(toFilter, filterChar, onlyAtStart)
+        endmethod
+        
+        public static method parse takes string val returns StringStack
+            local StringStack this
+            local StringStack array last
+            local string array openStack
+            local integer stack = 0
+            local integer start
+            local integer finish
+            local string char
+            local integer length
+            local boolean found
+            
+            local boolean escaping
+            local boolean escaped
+            
+            local boolean foundDecimal
+            local boolean foundNeg
+            local boolean foundInt
+            
+            local integer array totalCount
+            
+            local integer tyepCheck
+            
+            local integer length2
+            
+            local StringType curType
+            
+            local boolean done = false
+            
+            if (val != null and val != "") then
+                set this = 0
+                set length = StringLength(val)
+                set finish = 0
+                loop
+                    set found = false
+                    set curType = -1
+                    loop
+                        set finish = finish + 1
+                        set char = SubString(val,finish-1, finish)
+                        if (char != " " and char != ",") then
+                            set start = finish-1
+                            set found = true
+                        endif
+                        exitwhen found or finish == length
+                    endloop
+                    
+                    exitwhen not found
+                    
+                    if (char == "(" or char == "{" or char == "[") then
+                        if (stackRecycleCount != 0) then
+                            set stackRecycleCount = stackRecycleCount - 1
+                            set this = stackRecycle[stackRecycleCount]
+                        else
+                            set stackInstanceCount = stackInstanceCount + 1
+                            set this = stackInstanceCount
+                        endif
+                        
+                        set totalCount[stack] = totalCount[stack] + 1
+                        set stackStringType[this] = StringType.STACK
+                        set stackNext[last[stack]] = this
+                        set last[stack] = this
+                        set stack = stack + 1
+                        set openStack[stack] = char
+                        set last[stack] = this
+                        set stackNext[last[stack]] = 0
+                        set totalCount[stack] = 0
+                    elseif (char == ")" or char == "}" or char == "]") then
+                        if (stack > 0 and ((openStack[stack] == "(" and char == ")") or (openStack[stack] == "{" and char == "}") or (openStack[stack] == "[" and char == "]"))) then
+                            set stack = stack - 1
+                            set stackStack[last[stack]] = stackNext[last[stack]]
+                            set stackSize[last[stack]] = totalCount[stack+1]
+                            set stackNext[last[stack]] = 0
+                        else
+                            set stackNext[last[stack]] = 0
+                            set stack = 0
+                            set last[0] = stackNext[0]
+                            loop
+                                exitwhen last[stack] == 0 and stack == 0
+                                
+                                loop
+                                    exitwhen last[stack].type != StringType.STACK
+                                    set stack = stack + 1
+                                    set last[stack] = last[stack-1].stack
+                                endloop
+                                if (last[stack] == 0) then
+                                    set stack = stack - 1
+                                endif
+                                
+                                set stackRecycle[stackRecycleCount] = last[stack]
+                                set stackRecycleCount = stackRecycleCount + 1
+                                set last[stack] = stackNext[last[stack]]
+                            endloop
+                            return 0
+                        endif
+                    else
+                        if (char == "\"" and length-finish > 0) then
+                            set escaped = false
+                            set escaping = false
+                            loop
+                                set finish = finish + 1
+                                set char = SubString(val, finish-1, finish)
+                                
+                                if (not escaped) then
+                                    if (char == "\"") then
+                                        set curType = StringType.STRING
+                                        exitwhen true
+                                    elseif (char == "\\") then
+                                        set val = SubString(val, 0, finish-1)+SubString(val, finish, length)
+                                        set length = length - 1
+                                        set finish = finish - 1
+                                        if (finish == start) then
+                                            set start = start - 1
+                                        endif
+                                        set escaped = true
+                                        set escaping = true
+                                    endif
+                                endif
+                                
+                                if (not escaping) then
+                                    set escaped = false
+                                else
+                                    set escaping = false
+                                endif
+                                exitwhen finish == length
+                            endloop
+                            if (curType == -1) then
+                                set curType = 0
+                            endif
+                        elseif (char == "'") then
+                            if (length-finish > 4 and SubString(val, finish+4, finish+5) == "'") then
+                                set finish = finish + 5
+                                set curType = StringType.ASCII
+                            elseif (length-finish > 1 and SubString(val, finish+1, finish+2) == "'") then
+                                set finish = finish + 2
+                                set curType = StringType.ASCII
+                            endif
+                            if (curType == -1) then
+                                set curType = 0
+                            endif
+                        else
+                            loop
+                                exitwhen char == " " or char == "," or char == "(" or char == ")" or char == "{" or char == "}" or char == "[" or char == "]" or char == "\"" or char == "'"
+                                set done = finish == length
+                                exitwhen done
+                                set finish = finish + 1
+                                set char = SubString(val, finish-1, finish)
+                            endloop
+                            if (not done) then
+                                set finish = finish - 1
+                                set char = SubString(val, finish-1, finish)
+                            endif
+                        endif
+                        
+                        if (stackRecycleCount != 0) then
+                            set stackRecycleCount = stackRecycleCount - 1
+                            set this = stackRecycle[stackRecycleCount]
+                        else
+                            set stackInstanceCount = stackInstanceCount + 1
+                            set this = stackInstanceCount
+                        endif
+                        
+                        set totalCount[stack] = totalCount[stack] + 1
+                        set stackNext[last[stack]] = this
+                        set last[stack] = this
+                        
+                        set stackValue[this] = SubString(val, start, finish)
+                        
+                        if (curType == -1) then
+                            set curType = LoadInteger(stringValueIds, StringHash(stackValue[this]), 0)
+                            if (curType != 0) then
+                                set stackStringType[this] = stringValueTypes[curType]
+                            else //parse number
+                                set curType = StringType.INTEGER
+                                set foundDecimal = false
+                                set foundNeg = false
+                                set foundInt = false
+                                set length2 = finish
+                                
+                                loop
+                                    exitwhen length2 == start
+                                    set char = SubString(val, length2-1, length2)
+                                    if (foundNeg) then
+                                        set curType = StringType.NULL
+                                        exitwhen true
+                                    elseif (char != "0" and char != "1" and char != "2" and char != "3" and char != "4" and char != "5" and char != "6" and char != "7" and char != "8" and char != "9") then
+                                        if (char == "-" and foundInt) then
+                                            set foundNeg = true
+                                        elseif (char == "." and not foundDecimal) then
+                                            set curType = StringType.REAL
+                                            set foundDecimal = true
+                                        else
+                                            set curType = StringType.NULL
+                                            exitwhen true
+                                        endif
+                                    else
+                                        set foundInt = true
+                                    endif
+                                    set length2 = length2 - 1
+                                endloop
+                                set stackStringType[this] = curType
+                            endif
+                        else
+                            set stackStringType[this] = curType
+                        endif
+                        
+                        if (stackStringType[this] == StringType.ASCII or stackStringType[this] == StringType.STRING) then
+                            set stackValue[this] = SubString(stackValue[this], 1, StringLength(stackValue[this])-1)
+                        endif
+                    endif
+                    exitwhen finish == length
+                endloop
+                
+                set stackNext[last[stack]] = 0
+                if (stack == 0) then
+                    set stack = 0
+                    set last[0] = stackNext[0]
+                    loop
+                        exitwhen last[stack] == 0 and stack == 0
+                        
+                        if (last[stack].type == StringType.STACK) then
+                            set stack = stack + 1
+                            set totalCount[stack] = stackSize[stack]
+                            set last[stack] = last[stack-1].stack
+                        endif
+                        if (last[stack] == 0) then
+                            set stack = stack - 1
+                        endif
+                        
+                        set stackCount[last[stack]] = totalCount[stack]
+                        set totalCount[stack] = totalCount[stack] - 1
+                        set last[stack] = stackNext[last[stack]]
+                    endloop
+                    return stackNext[0]
+                endif
+                
+                set stack = 0
+                set last[0] = stackNext[0]
+                loop
+                    exitwhen last[stack] == 0 and stack == 0
+                    
+                    loop
+                        exitwhen last[stack].type != StringType.STACK
+                        set stack = stack + 1
+                        set last[stack] = last[stack-1].stack
+                    endloop
+                    if (last[stack] == 0) then
+                        set stack = stack - 1
+                    endif
+                    
+                    set stackRecycle[stackRecycleCount] = last[stack]
+                    set stackRecycleCount = stackRecycleCount + 1
+                    set last[stack] = stackNext[last[stack]]
+                endloop
+            endif
+            
+            return 0
+        endmethod
+        
+        public static method typeof takes string s returns StringType
+            return Typeof(s)
+        endmethod
+    endstruct
+    
+    //string to boolean
+    function S2B takes string s returns boolean
+        return stringConvertValue[LoadInteger(stringValueIds, StringHash(s), 0)] > 0
+    endfunction
+    
+    //boolean to string
+    function B2S takes boolean val returns string
+        if (val) then
+            return stringValues[1]
+        endif
+        return stringValues[2]
+    endfunction
+    
+    struct StringValue extends array
+        public method destroy takes nothing returns nothing
+            if (stringValueLength[this] > 0) then
+                set stringValueRecycle[stringValueRecycleCount] = this
+                set stringValueRecycleCount = stringValueRecycleCount + 1
+                
+                set stringValueLength[this] = 0
+                call RemoveSavedInteger(stringValueIds, stringValueId[this], 0)
+            endif
+        endmethod
+        
+        public static method create takes string value, StringType valueType, integer convertedValue returns thistype
+            local integer id = StringHash(value)
+            local thistype this = LoadInteger(stringValueIds, id, 0)
+            if (value != "" and value != null and integer(valueType) >= StringType.BOOLEAN and this == 0) then
+                if (stringValueRecycleCount != 0) then
+                    set stringValueRecycleCount = stringValueRecycleCount - 1
+                    set this = stringValueRecycle[stringValueRecycleCount]
+                else
+                    set stringValueCount = stringValueCount + 1
+                    set this = stringValueCount
+                endif
+                
+                set stringValues[this] = value
+                set stringValueTypes[this] = valueType
+                set stringValueLength[this] = StringLength(value)
+                set stringConvertValue[this] = convertedValue
+                set stringValueId[this] = id
+                call SaveInteger(stringValueIds, id, 0, this)
+                
+                return this
+            endif
+            return this
+        endmethod
+        
+        public static method operator [] takes string s returns thistype
+            return LoadInteger(stringValueIds, StringHash(s), 0)
+        endmethod
+        
+        public method operator boolean takes nothing returns boolean
+            return stringConvertValue[this] > 0
+        endmethod
+        
+        public method operator integer takes nothing returns integer
+            return stringConvertValue[this]
+        endmethod
+        
+        public method operator integer= takes integer value returns nothing
+            set stringConvertValue[this] = value
+        endmethod
+        
+        public method operator string takes nothing returns string
+            return stringValues[this]
+        endmethod
+        
+        public method operator type takes nothing returns StringType
+            return stringValueTypes[this]
+        endmethod
+    endstruct
+    
+    private module Initializer
+        private static method onInit takes nothing returns nothing
+            set stringTypeCount = BOOLEAN
+            
+            set stringTypeNames[NULL] = "null"
+            set stringTypeNames[BOOLEAN] = "boolean"
+            set stringTypeNames[ASCII] = "ascii"
+            set stringTypeNames[INTEGER] = "integer"
+            set stringTypeNames[REAL] = "real"
+            set stringTypeNames[STRING] = "string"
+            set stringTypeNames[STACK] = "stack"
+            
+            set stringValueCount = 4
+            set stringValues[1] = "true"
+            set stringValues[2] = "false"
+            set stringValues[3] = "on"
+            set stringValues[4] = "off"
+            call SaveInteger(stringValueIds, StringHash("true"), 0, 1)
+            call SaveInteger(stringValueIds, StringHash("false"), 0, 2)
+            call SaveInteger(stringValueIds, StringHash("on"), 0, 3)
+            call SaveInteger(stringValueIds, StringHash("off"), 0, 4)
+            set stringValueTypes[1] = BOOLEAN
+            set stringValueTypes[2] = BOOLEAN
+            set stringValueTypes[3] = BOOLEAN
+            set stringValueTypes[4] = BOOLEAN
+            set stringValueLength[1] = 4
+            set stringValueLength[2] = 5
+            set stringValueLength[3] = 2
+            set stringValueLength[4] = 3
+            set stringConvertValue[1] = 1
+            set stringConvertValue[2] = 0
+            set stringConvertValue[3] = 1
+            set stringConvertValue[4] = 0
+            
+            set stringTypeExtend[INTEGER] = REAL
+            call SaveBoolean(stringValueIds, INTEGER, REAL, true)
+        endmethod
+    endmodule
+
+    struct StringType extends array
+        public static constant integer NULL = 0
+        public static constant integer ASCII = 1
+        public static constant integer INTEGER = 2
+        public static constant integer REAL = 3
+        public static constant integer STACK = 4
+        public static constant integer STRING = 5
+        public static constant integer BOOLEAN = 6
+        
+        public static method create takes string name, StringType extend returns thistype
+            if (integer(extend) >= BOOLEAN or integer(extend) == 0) then
+                set stringTypeCount = stringTypeCount + 1
+                set stringTypeNames[stringTypeCount] = name
+                set stringTypeExtend[stringTypeCount] = extend
+                loop
+                    exitwhen integer(extend) == 0
+                    call SaveBoolean(stringValueIds, stringTypeCount, extend, true)
+                    set extend = stringTypeExtend[extend]
+                endloop
+                return stringTypeCount
+            endif
+            return 0
+        endmethod
+        
+        public method operator name takes nothing returns string
+            return stringTypeNames[this]
+        endmethod
+        
+        public method operator extends takes nothing returns StringType
+            return stringTypeExtend[this]
+        endmethod
+        
+        public method is takes StringType ofType returns boolean
+            return this == ofType or (this != NULL and (ofType == STRING and this != STACK) or LoadBoolean(stringValueIds, this, ofType))
+        endmethod
+        
+        implement Initializer
+    endstruct
+endlibrary
+[/jass]

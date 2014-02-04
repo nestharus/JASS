@@ -1,0 +1,760 @@
+The Uses of the Position Library
+[table]
+[indent]The Position Library boxes up units, items, destructables, and locations into a single struct, thus allowing them to be passed around with ease. It also provides a locking mechanism so that position structs are not destroyed until nothing is using them. This is especially useful with locations that are shared across different systems, spells, and etc, making it so that the locations are not removed until everything is done using them. Locations are also automatically destroyed when the position struct is destroyed.
+
+This was originally used in my CombatSuite for storing targets.[/indent]
+[/table]
+
+Examples
+[quote]
+Retrieve and lock positions
+[jass]
+Position pos = Position[agent] //returns 0 if agent is an invalid handle type (null or not an agent with coodinates)
+call pos.lock() //so that it's not removed until done with it
+call pos.unlock() //don't forget to remove the lock when finished
+[/jass]
+
+Read/Write from a position struct that could contain a location, unit, item, or destructable, without knowing what's in it
+[jass]
+//notice the type of position is not known
+real x = pos.x
+real y = pos.y
+real z = pos.z
+
+set pos.x=50
+set pos.y=50
+set pos.z=50
+
+call pos.move(50, 50)
+[/jass]
+
+Validate positions to make sure the handles within them still exist
+[jass]
+if (pos.valid) then
+	//perform actions
+//else
+	//notice this is commented. The reason is because if a position is not valid, it automatically unlocks
+	//call pos.unlock()
+endif
+[/jass]
+
+Determine the type of handle stored in a position and work with the handle
+[jass]
+local location l
+local widget w
+local unit u
+local item i
+local destructable d
+
+if (pos.isLoc) then
+	//enum units in range and damage?
+	set l = pos.location
+else //if it's not a location, then it's a widget
+	set w = pos.widget
+	if (pos.isUnit) then
+		//apply damage to unit?
+		set u = pos.unit
+	elseif (pos.isItem) then
+		//weaken item?
+		set i = pos.item
+	elseif (pos.isDest) then
+		//remove destructable?
+		set d = pos.destructable
+	endif
+endif
+[/jass]
+[/quote]
+
+[jass]
+library Position /* v2.1.2.0
+*************************************************************************************
+*
+*   Boxes location, unit, item, destructable positions into a Position object.
+*
+*************************************************************************************
+*
+*   */uses/*
+*   
+*       Extensions
+*       -------------------------------
+*
+*           */ optional PositionPlayer      /*      see Position thread
+*           */ optional PositionFacing      /*      see Position thread
+*           */ optional PositionCollision   /*      see Position thread
+*           */ optional PositionFacingZ     /*      see Position thread
+*
+*       Requirements
+*       -------------------------------
+*
+*           */ ItemPosition                 /*      hiveworkshop.com/forums/submissions-414/snippet-item-position-184566/
+*
+************************************************************************************
+*
+*   SETTINGS
+*/
+globals
+    /*************************************************************************************
+    *
+    *   if an item is carried, should the carrying unit be modified, or should the
+    *   item be dropped?
+    *
+    *************************************************************************************/
+    private constant boolean MOD_OWNER = true
+    
+    /*************************************************************************************
+    *
+    *   if mod owner is false, should the item be modded if it's being carried?
+    *
+    *************************************************************************************/
+    private constant boolean MOD_ITEM = true
+endglobals
+/*
+************************************************************************************
+*
+*    struct Position extends array
+*
+*       Creators/Destructors
+*       -------------------------------
+*
+*           static method create takes real x, real y, real z returns Position
+*               -   returns a position with coordinates x,y,z
+*
+*           static method operator [] takes agent target returns Position
+*               -   Converts a location, unit, item, or destructable into a Position
+*               -   Automatically removes location when position is destroyed
+*
+*       Locks
+*       -------------------------------
+*
+*           method lock takes nothing returns boolean
+*               -   places a lock on the position so that it is not destroyed
+*               -   returns true if lock succeeds
+*           method unlock takes nothing returns boolean
+*               -   removes a lock from the position, destroying the position if no locks remain
+*
+*       Fields
+*       -------------------------------
+*
+*           static constant integer DEST = 1
+*           static constant integer UNIT = 2
+*           static constant integer ITEM = 3
+*           static constant integer LOC = 4
+*           static constant integer POSITION = 5
+*
+*           real x
+*           real y
+*           real z
+*
+*           real posX
+*           real posY
+*           real posZ
+*               -   position specific coordinates (only works with positions created using create method)
+*
+*           readonly integer id
+*               -   handle id of stored widget/location
+*
+*           readonly boolean isLoc
+*           readonly boolean isUnit
+*           readonly boolean isDest
+*           readonly boolean isItem
+*           readonly boolean isPos
+*
+*           readonly location location
+*           readonly item item
+*           readonly destructable destructable
+*           readonly unit unit
+*           readonly widget widget
+*
+*           readonly integer type
+*
+*           readonly boolean valid
+*               -   determines whether the position is valid or not (handle still exists)
+*               -   if position is not valid, automatically unlocks position
+*
+*       Methods
+*       -------------------------------
+*
+*           method move takes real x, real y returns nothing
+*               -   moves the position to x,y coordinates
+*           method moveZ takes real x, real y, real z returns nothing
+*               -   moves the position to x,y,z
+*
+************************************************************************************/
+    struct Position extends array
+        //handle types
+        static constant integer DEST = 1
+        static constant integer UNIT = 2
+        static constant integer ITEM = 3
+        static constant integer LOC = 4
+        static constant integer POSITION = 5
+    
+        private static integer ic = 0                       //instance count
+        private static integer array ir                     //instance recycler
+        private static hashtable pt = InitHashtable()       //position table
+        
+        readonly location location
+        readonly item item
+        readonly destructable destructable
+        readonly unit unit
+        readonly widget widget
+        
+        readonly integer type                               //handle type
+        
+        readonly integer id                                 //handle id
+        private boolean bv                                  //handle valid?
+        private static location zl = Location(0, 0)         //z location
+        private integer pl                                  //position locks
+        
+        private real xp
+        private real yp
+        private real zp
+        
+        //is handle type properties
+        public method operator isLoc takes nothing returns boolean
+            return type == LOC
+        endmethod
+        public method operator isUnit takes nothing returns boolean
+            return type == UNIT
+        endmethod
+        public method operator isDest takes nothing returns boolean
+            return type == DEST
+        endmethod
+        public method operator isItem takes nothing returns boolean
+            return type == ITEM
+        endmethod
+        public method operator isPos takes nothing returns boolean
+            return type == POSITION
+        endmethod
+        
+        //plugins
+        implement optional PositionPlayer_Data
+        implement optional PositionFacing_Data
+        implement optional PositionCollision_Data
+        implement optional PositionFacingZ_Data
+        
+        static method create takes real x, real y, real z returns thistype
+            local thistype this
+            if (ir[0] == 0) then
+                set this = ic+1
+                set ic=this
+            else
+                set this = ir[0]
+                set ir[0] = ir[this]
+            endif
+            
+            set xp = x
+            set yp = y
+            set zp = z
+            set type = POSITION
+            set bv = true
+            set id = 0
+            return this
+        endmethod
+        
+        method operator posX takes nothing returns real
+            return xp
+        endmethod
+        method operator posX= takes real r returns nothing
+            set xp = r
+        endmethod
+        method operator posY takes nothing returns real
+            return yp
+        endmethod
+        method operator posY= takes real r returns nothing
+            set yp = r
+        endmethod
+        method operator posZ takes nothing returns real
+            return zp
+        endmethod
+        method operator posZ= takes real r returns nothing
+            set zp = r
+        endmethod
+        
+        //get x,y,z
+        public method operator x takes nothing returns real
+            if (type > ITEM) then
+                if (type > LOC) then
+                    return xp
+                endif
+                return GetLocationX(location)
+            elseif (type < ITEM) then
+                return GetWidgetX(widget)
+            endif
+            return ItemGetX(item)
+        endmethod
+        public method operator y takes nothing returns real
+            if (type > ITEM) then
+                if (type > LOC) then
+                    return yp
+                endif
+                return GetLocationY(location)
+            elseif (type < ITEM) then
+                return GetWidgetY(widget)
+            endif
+            return ItemGetY(item)
+        endmethod
+        public method operator z takes nothing returns real
+            if (type > ITEM) then
+                if (type > LOC) then
+                    return zp
+                endif
+                return GetLocationZ(location)
+            elseif (type < ITEM) then
+                call MoveLocation(zl, GetWidgetX(widget), GetWidgetY(widget))
+                
+                if (type == UNIT) then
+                    return GetUnitFlyHeight(unit) + GetLocationZ(zl)
+                endif
+                
+                return GetLocationZ(zl)
+            endif
+            
+            return ItemGetZ(item)
+        endmethod
+        
+        //set x,y,z
+        public method operator x= takes real r returns nothing
+            if (type > ITEM) then
+                if (type > LOC) then
+                    set xp = r
+                else
+                    call MoveLocation(location, r, GetLocationY(location))
+                endif
+            elseif (type == UNIT) then
+                call SetUnitX(unit, r)
+            else
+                static if MOD_ITEM then
+                    call SetItemPosition(item, r, ItemGetY(item))
+                else
+                    call ItemSetX(item, r, MOD_OWNER)
+                endif
+            endif
+        endmethod
+        public method operator y= takes real r returns nothing
+            if (type > ITEM) then
+                if (type > LOC) then
+                    set yp = r
+                else
+                    call MoveLocation(location, GetLocationX(location), r)
+                endif
+            elseif (type == UNIT) then
+                call SetUnitY(unit, r)
+            else
+                static if MOD_ITEM then
+                    call SetItemPosition(item, ItemGetX(item), r)
+                else
+                    call ItemSetY(item, r, MOD_OWNER)
+                endif
+            endif
+        endmethod
+        public method operator z= takes real r returns nothing
+            if (type > ITEM) then
+                if (type > LOC) then
+                    set zp = r
+                endif
+            elseif (type == UNIT) then
+                call MoveLocation(zl, GetUnitX(unit), GetUnitY(unit))
+                call SetUnitFlyHeight(unit, r - GetLocationZ(zl), 0)
+            else
+                static if MOD_ITEM then
+                    call SetItemPosition(item, ItemGetX(item), r)
+                else
+                    call ItemSetY(item, r, MOD_OWNER)
+                endif
+            endif
+        
+            static if MOD_OWNER then
+                if (type < ITEM) then
+                    if (type == UNIT) then
+                        call MoveLocation(zl, GetUnitX(unit), GetUnitY(unit))
+                        call SetUnitFlyHeight(unit, r - GetLocationZ(zl), 0)
+                    endif
+                elseif (type > ITEM) then
+                    set zp = r
+                else
+                    call ItemSetZ(item, r, 0)
+                endif
+            else
+                if (isPos) then
+                    set zp = r
+                elseif (isUnit) then
+                    call SetUnitFlyHeight(unit, r, 0)
+                endif
+            endif
+        endmethod
+        
+        //move
+        public method move takes real x, real y returns nothing
+            if (type > ITEM) then
+                if (type > LOC) then
+                    set xp = x
+                    set yp = y
+                else
+                    call MoveLocation(location, x, y)
+                endif
+            elseif (type == UNIT) then
+                call SetUnitX(unit, x)
+                call SetUnitY(unit, y)
+            else
+                static if MOD_ITEM then
+                    call SetItemPosition(item, x, y)
+                else
+                    call ItemSetPos(item, x, y, MOD_OWNER)
+                endif
+            endif
+        endmethod
+        public method moveZ takes real x, real y, real z returns nothing
+            if (type > ITEM) then
+                if (type > LOC) then
+                    set xp = x
+                    set yp = y
+                    set zp = z
+                else
+                    call MoveLocation(location, x, y)
+                endif
+            elseif (type == UNIT) then
+                call MoveLocation(location, x, y)
+                
+                call SetUnitX(unit, x)
+                call SetUnitY(unit, y)
+                call SetUnitFlyHeight(unit, z - GetLocationZ(zl), 0)
+            else
+                static if MOD_ITEM then
+                    call SetItemPosition(item, x, y)
+                else
+                    call ItemSetPosZ(item, x, y, z, MOD_OWNER)
+                endif
+            endif
+        endmethod
+        
+        //is valid
+        private method operator isValidLoc takes nothing returns boolean
+            local real x = GetLocationX(location)
+            call MoveLocation(location, x+28, GetLocationY(location))
+            if (R2I(GetLocationX(location)+.5) != R2I(x+28+.5)) then
+                set location = null
+                return false
+            endif
+            call MoveLocation(location, x, GetLocationY(location))
+            return true
+        endmethod
+        private method operator isValidUnit takes nothing returns boolean
+            return 0 != GetUnitTypeId(unit)
+        endmethod
+        private method operator isValidDestructable takes nothing returns boolean
+            return 0 != GetDestructableTypeId(destructable)
+        endmethod
+        private method operator isValidItem takes nothing returns boolean
+            return 0 != GetItemTypeId(item)
+        endmethod
+        
+        private method unlockR takes nothing returns nothing
+            set pl = pl - 1
+            if (0 == pl) then
+                set type = 0
+                set ir[this] = ir[0]
+                set ir[0] = this
+            endif
+        endmethod
+        
+        private method operator isValid takes nothing returns boolean
+            if (bv) then
+                if (type > ITEM) then
+                    if (isValidLoc) then
+                        return true
+                    else
+                        set location = null
+                        call RemoveSavedHandle(pt, this, 0)
+                        call RemoveSavedInteger(pt, id, 0)
+                        set bv = false
+                        return false
+                    endif
+                elseif (type < ITEM) then
+                    if (isUnit) then
+                        if (isValidUnit) then
+                            return true
+                        else
+                            set unit = null
+                            call RemoveSavedHandle(pt, this, 0)
+                            call RemoveSavedInteger(pt, id, 0)
+                            set bv = false
+                            return false
+                        endif
+                    elseif (isValidDestructable) then
+                        return true
+                    else
+                        set destructable = null
+                        call RemoveSavedHandle(pt, this, 0)
+                        call RemoveSavedInteger(pt, id, 0)
+                        set bv = false
+                        return false
+                    endif
+                elseif (isValidItem) then
+                    return true
+                else
+                    set item = null
+                    call RemoveSavedHandle(pt, this, 0)
+                    call RemoveSavedInteger(pt, id, 0)
+                    set bv = false
+                    return false
+                endif
+            endif
+            
+            return false
+        endmethod
+        
+        //create
+        public static method operator [] takes agent target returns thistype
+            local thistype this = 0
+            local integer hid
+            local boolean dest = false
+            
+            if (null != target) then
+                set hid = GetHandleId(target)
+                set this = LoadInteger(pt, hid, 0)
+                
+                if (0 == this) then
+                    if (ir[this] == 0) then
+                        set this = ic+1
+                        set ic = this
+                        set pl = 0
+                    else
+                        set this = ir[0]
+                        set ir[0] = ir[this]
+                        static if LIBRARY_PositionPlayer then
+                            set owner = null
+                        endif
+                        static if LIBRARY_PositionFacing then
+                            set facing = 0
+                        endif
+                        static if LIBRARY_PositionCollision then
+                            set collision = 0
+                        endif
+                        static if LIBRARY_PositionFacingZ then
+                            set facingZ = 0
+                        endif
+                    endif
+                    
+                    call SaveAgentHandle(pt, this, 0, target)
+                    set location = LoadLocationHandle(pt, this, 0)
+                    if (null != location) then
+                        set type = LOC
+                        set dest = not isValidLoc
+                    else
+                        set widget = LoadWidgetHandle(pt, this, 0)
+                        if (null != widget) then
+                            set unit = LoadUnitHandle(pt, this, 0)
+                            if (null != unit) then
+                                set type = UNIT
+                                set dest = not isValidUnit
+                            else
+                                set destructable = LoadDestructableHandle(pt, this, 0)
+                                if (null != destructable) then
+                                    set type = DEST
+                                    set dest = not isValidDestructable
+                                else
+                                    set item = LoadItemHandle(pt, this, 0)
+                                    if (null != item) then
+                                        set type = ITEM
+                                        set dest = not isValidItem
+                                    else
+                                        set dest = true
+                                    endif
+                                endif
+                            endif
+                        else
+                            set dest = true
+                        endif
+                    endif
+                    
+                    if (dest) then
+                        set ir[this] = ir[0]
+                        set ir[0] = this
+                        call RemoveSavedHandle(pt, this, 0)
+                        return 0
+                    else
+                        set id = hid
+                        call SaveInteger(pt, hid, 0, this)
+                        set bv = true
+                    endif
+                endif
+            endif
+            
+            return this
+        endmethod
+        
+        //lock/unlock
+        public method unlock takes nothing returns boolean
+            if (0 < pl) then
+                set pl = pl - 1
+                if (0 == pl) then
+                    if (bv) then
+                        set bv = false
+                        call RemoveLocation(location)
+                        set location = null
+                        set unit = null
+                        set widget = null
+                        set destructable = null
+                        set item = null
+                        call RemoveSavedHandle(pt, this, 0)
+                        call RemoveSavedInteger(pt, id, 0)
+                    endif
+                    set type = 0
+                    set ir[this] = ir[0]
+                    set ir[0] = this
+                endif
+                return true
+            endif
+            return false
+        endmethod
+        
+        public method lock takes nothing returns boolean
+            if (isPos or isValid) then
+                set pl = pl + 1
+                return true
+            endif
+            return false
+        endmethod
+        
+        public method operator valid takes nothing returns boolean
+            if (isPos or isValid) then
+                return true
+            endif
+            call unlock()
+            return false
+        endmethod
+    endstruct
+endlibrary
+[/jass]
+
+
+[b]Extensions[/b]
+[quote]
+[jass]
+library PositionPlayer
+    /*
+        player owner
+            Player that owns position
+    */
+    
+    public module Data
+        private player owningp
+        
+        public method operator owner takes nothing returns player
+            if (isItem) then
+                return GetOwningPlayer(GetItemOwner(item))
+            elseif (isUnit) then
+                return GetOwningPlayer(unit)
+            endif
+            return owningp
+        endmethod
+        
+        public method operator owner= takes player p returns nothing
+            set owningp = p
+            if (isItem) then
+                call SetUnitOwner(GetItemOwner(item), p, true)
+            elseif (isUnit) then
+                call SetUnitOwner(unit, p, true)
+            endif
+        endmethod
+    endmodule
+endlibrary
+[/jass]
+
+[jass]
+library PositionFacing
+    /*
+        real facing
+            Facing of position in radians
+    */
+    
+    public module Data
+        private real face
+        
+        public method operator facing takes nothing returns real
+            if (isItem) then
+                return GetUnitFacing(GetItemOwner(item))*0.017453292
+            elseif (isUnit) then
+                return GetUnitFacing(unit)*0.017453292
+            endif
+            return face
+        endmethod
+        
+        public method operator facing= takes real f returns nothing
+            set face = f
+            if (isItem) then
+                call SetUnitFacing(GetItemOwner(item), f*57.2958279)
+            elseif (isUnit) then
+                call SetUnitFacing(unit, f*57.2958279)
+            endif
+        endmethod
+    endmodule
+endlibrary
+[/jass]
+[jass]
+/*
+*   GetUnitCollision
+*
+*       hiveworkshop.com/forums/jass-resources-412/snippet-getunitcollision-180495/
+*
+*/
+library PositionCollision uses GetUnitCollision
+    /*
+        player owner
+            Player that owns position
+    */
+    
+    public module Data
+        private real collision_p
+        
+        public method operator collision takes nothing returns real
+            if (isUnit) then
+                return GetUnitCollision(unit)
+            endif
+            return collision_p
+        endmethod
+        
+        public method operator collision= takes real v returns nothing
+            set collision_p = v
+        endmethod
+    endmodule
+endlibrary
+[/jass]
+[jass]
+/*
+*   Dummy
+*
+*       hiveworkshop.com/forums/submissions-414/system-dummy-213908/
+*
+*/
+library PositionFacingZ uses Dummy
+    /*
+        player owner
+            Player that owns position
+    */
+    
+    public module Data
+        private real facingZ_p
+        
+        public method operator facingZ takes nothing returns real
+            return facingZ_p
+        endmethod
+        
+        public method operator facingZ= takes real v returns nothing
+            local integer i
+            
+            if (v > 1.5708) then
+                set v = 1.5708
+            elseif (-1.5708 > v) then
+                set v = -1.5708
+            endif
+            set facingZ_p = v
+            
+            if (isUnit and IsUnitDummy(unit)) then
+                call SetUnitAnimationByIndex(unit, R2I(v*57.2957795 + 90.5))
+            endif
+        endmethod
+    endmodule
+endlibrary
+[/jass]
+[/quote]

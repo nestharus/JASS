@@ -1,0 +1,1 @@
+This does not work with Warcraft 3 abilities like multishot or barrage. If you want them, you have to code them yourself.

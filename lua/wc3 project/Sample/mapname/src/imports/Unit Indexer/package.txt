@@ -1,0 +1,25 @@
+--
+--	package[index]
+--
+--		url
+--		version
+--
+
+return {
+	{
+		url = "http://www.hiveworkshop.com/forums/pastebin_data/ir76d2/_files/pregame%20event.j",
+		version = 0
+	},
+	{
+		url = "http://www.hiveworkshop.com/forums/pastebin_data/ir76d2/_files/script.j",
+		version = 0
+	},
+	{
+		url = "http://www.hiveworkshop.com/forums/pastebin_data/ir76d2/_files/unit%20indexer.j",
+		version = 0
+	},
+	{
+		url = "http://www.hiveworkshop.com/forums/pastebin_data/ir76d2/_files/unit%20index.j",
+		version = 0
+	}
+}

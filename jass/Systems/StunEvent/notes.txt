@@ -1,0 +1,3 @@
+I might recommend coupling this with detecting when a unit is paused, which
+is the same issued order as was already discussed but with a point-order event
+(yeah point order .... when it's paused, doesn't make any sense I know)

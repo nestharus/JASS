@@ -1,0 +1,119 @@
+function jass.create(str)
+    function code(str)
+
+function jass.variable.create(type, name, value)
+    function tostring()
+
+function string:tovariable()
+
+function jass.globals.create(self)
+    function rip()
+    function read(name)
+    function write(name, var)
+	
+	
+
+	
+	
+JASS TABLE
+Quote:
+Code:
+function jass.create(str)
+    converts a string into a jass table
+Code:
+function code(str)
+    retrieves the code inside of the jass table if str is nil
+    sets the code inside of the jass table if str has a value
+JASS.VARIABLE TABLE
+Quote:
+Code:
+function jass.variable.create(type, name, value)
+    creates a jass.variable table given types 
+    (string of types, like integer array), name, and value
+Code:
+function tostring()
+    converts a jass.variable table into a string
+
+    local variable = jass.variable.create("integer array hello")
+    local str = variable:tostring() --returns "integer array hello"
+STRING ADD ON
+Code:
+function string:tovariable()
+    converts a string into a variable object
+
+    local str = "integer array hello"
+    local variable = str:tovariable()
+JASS.GLOBALS TABLE
+Quote:
+Code:
+function jass.globals.create(self)
+    creates a jass.globals table. 
+
+    A jass table can be passed in to add a jass.globals table to it. 
+
+    A string can be passed in to convert it to a jass table 
+    and then add a jass.globals table to it.
+
+    Globals block is automatically added if one is not already present
+
+    local j = jass.globals.create("function hello takes nothing returns nothingnendfunction")
+
+    local j2 = jass.create("function hello takes nothing returns nothingnendfunction")
+    j2 = jass.globals.create(j2)
+Code:
+function rip()
+    Rips global variables out
+
+    globals//globals
+        integer array hello
+        integer boo
+    endglobals//endglobals
+
+    function hello takes nothing returns nothing
+    endfunction
+
+    j:rip() ->
+        integer array hello
+        integer boo
+Code:
+function read(name)
+
+    returns a global variable as a variable table
+
+    j:read("boo") -> variable.create(integer, boo, nil)
+Code:
+function write(name, var)
+    
+    writes a variable table or string to a global variable.
+    if the global variable is not present, the new variable is added
+    if the new variable is nil, the old variable is deleted
+    if the variable is present, the variable is overwritten
+
+    j:write("boo", "constant string BOO = "BOO!") ->
+
+    globals//globals
+        integer array hello
+        constant string BOO = "BOO!"
+    endglobals//endglobals
+
+    function hello takes nothing returns nothing
+    endfunction
+TEST CODE
+Code:
+local rest = [[
+	function boom takes nothing returns nothing
+		call DisplayTextToPlayer(GetLocalPlayer(), 0, 0, "hello world")
+	endfunction
+]]
+
+c = jass.globals.create(rest)
+c:write("hello", "integer array hello")
+c:write("hello", "integer hello=15")
+c:write("hello", "constant integer HELLO=15")
+c:write("boom", "string array boom")
+c:write("HELLO", nil)
+
+v = c:read("boom")
+print(v:tostring() .. "nn")
+
+print(c.code())

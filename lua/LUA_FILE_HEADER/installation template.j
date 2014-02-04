@@ -1,0 +1,13 @@
+//MyScript v1.0.0.0
+//! externalblock extension=lua FileExporter $FILENAME$
+    //! runtextmacro LUA_FILE_HEADER()
+    //! i writelua("MyScript", [[
+    //////////////////////////////////////////////////////////////////
+    //code
+
+
+
+    //end code
+    //////////////////////////////////////////////////////////////////
+    //! i ]])
+//! endexternalblock

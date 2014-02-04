@@ -1,0 +1,354 @@
+//! externalblock extension=lua FileExporter $FILENAME$
+    //! runtextmacro LUA_FILE_HEADER()
+    
+    //BonusAbility v1.0.0.1
+    //BonusJASS v1.0.0.0
+    
+    //! i writelua("BonusAbility", [======[
+    //////////////////////////////////////////////////////////////////
+    //code
+    
+    //! i abilities = {}
+    //! i 
+    //! i Ability = {}    --[[
+    //! i -------------------------------------------------------------------------------------------------------
+    //! i *
+    //! i *   Fields
+    //! i *   ---------------------------------------------------------------------------------------------------
+    //! i *   *   ->  maxpower        |   maximum power of ability (in base 2)
+    //! i *   *   ->  isperc          |   is percent
+    //! i *   *   ->  abilityid       |   id of ability object
+    //! i *   *   ->  field           |   id of ability field that gives data bonus
+    //! i *   *   ->  name            |   name to assign to ability object
+    //! i *   *   ->  ranged          |   the ability has a definite range
+    //! i *   ---------------------------------------------------------------------------------------------------
+    //! i *
+    //! i *   Functions
+    //! i *   ---------------------------------------------------------------------------------------------------
+    //! i *   *   ->  function Ability.new(perc, abilityid, bonusfield, name, ranged, enabled) returns ability
+    //! i *   ---------------------------------------------------------------------------------------------------
+    //! i *
+    //! i ------------------------------------------------------------------------------------------------------- ]]
+    //! i local function genobjects(self)
+    //! i     local function getmultiplier(power)
+    //! i         --[[get multiplier value]]
+    //! i         local multiplier
+    //! i         
+    //! i         multiplier = 1
+    //! i         
+    //! i         if (self.isperc) then
+    //! i             multiplier = .01
+    //! i         end
+    //! i         
+    //! i         --[[get multiplier sign]]
+    //! i         if (self.ranged) then
+    //! i             if (power == self.maxpower) then
+    //! i                 multiplier = -multiplier
+    //! i             end
+    //! i         elseif (power == 0) then
+    //! i             multiplier = 0
+    //! i         elseif (power ~= self.maxpower + 1) then
+    //! i             multiplier = -multiplier
+    //! i         end
+    //! i         
+    //! i         return multiplier
+    //! i     end
+    //! i 
+    //! i     ----------------------------------------------------------------------------
+    //! i     --  CODE
+    //! i     ----------------------------------------------------------------------------
+    //! i         --[[generate objects]]
+    //! i         if (self.ranged) then
+    //! i             for power = 0, self.maxpower, 1 do
+    //! i                 --[[create object]]
+    //! i                 self.objects[power]=getvarobject(self.abilityid, "abilities","BONUS_" .. self.name .. "_" .. tostring(power), false)
+    //! i                 self.abilities[power] = createobject(self.abilityid, self.objects[power])
+    //! i                 
+    //! i                 --[[set object name]]
+    //! i                 makechange(self.abilities[power], "anam", "BONUS_" .. self.name .. "_" .. tostring(power))
+    //! i                 
+    //! i                 --[[set object bonus]]
+    //! i                 makechange(current, self.field, 1, getmultiplier(power)*2^power)
+    //! i             end
+    //! i         else
+    //! i             --[[create object]]
+    //! i             self.objects[0] = getvarobject(self.abilityid, "abilities", "BONUS_" .. self.name, false)
+    //! i             self.abilities[0] = createobject(self.abilityid, self.objects[0])
+    //! i             makechange(self.abilities[0], "anam", "BONUS_" .. self.name .. "_" .. tostring(power))
+    //! i             
+    //! i             --[[Level 1: 0]]
+    //! i             --[[Level Mid: Negative Power - 1]]
+    //! i             --[[Level Max: Positive Power - 1]]
+    //! i             makechange(current, "alev", self.maxpower + 2)
+    //! i             
+    //! i             --[[set object bonus]]
+    //! i             for power = 0, self.maxpower + 2, 1 do
+    //! i                 makechange(current, self.field, power + 1, getmultiplier(power)*2^(power - 1))
+    //! i             end
+    //! i         end
+    //! i     ----------------------------------------------------------------------------
+    //! i end
+    //! i 
+    //! i function Ability.new(perc, abilityid, bonusfield, name, ranged, enabled, maxpower)    --[[
+    //! i -------------------------------------------------------------------------------------------------------
+    //! i *   -> perc                 |   is ability value percent?
+    //! i *   -> abilityid            |   base ability id 
+    //! i *   -> bonusfield           |   field with value of ability
+    //! i *   -> name                 |   name of ability
+    //! i *   -> ranged               |   does ability have defined range
+    //! i *   -> enabled              |   is ability enabled
+    //! i *   -> maxpower             |   maximum power
+    //! i ------------------------------------------------------------------------------------------------------- ]]
+    //! i     local self = nil
+    //! i     
+    //! i     if (enabled) then
+    //! i         self = {}
+    //! i         
+    //! i         --[[init fields]]
+    //! i         self.objects = {}             --> stores generated ability ids
+    //! i         self.abilities = {}             --> stores generated ability objects
+    //! i         self.maxpower = maxpower      --> stores max power of 2 ability value can be
+    //! i         self.isperc = perc            --> does ability use a percent value?
+    //! i         self.abilityid = abilityid    --> base ability id
+    //! i         self.field = bonusfield       --> object field that modifies bonus value
+    //! i         self.name = name              --> ability name
+    //! i         self.ranged = ranged          --> ability has definite range
+    //! i         
+    //! i         --[[generate objects]]
+    //! i         genobjects(self)
+    //! i       end
+    //! i     
+    //! i     table.insert(abilities,self)
+    //! i     abilities = Ability.getvalid(abilities)                             --> filter out invalid abilities
+    //! i     abilities.containslimited = Ability.limitedenabled(abilities)       --> determine if any abilities are limited
+    //! i     abilities.containsunlimited = Ability.unlimitedenabled(abilities)   --> determines if any abilites are unlimited
+    //! i     
+    //! i     return self
+    //! i end
+    //! i 
+    //! i function Ability.getvalid(abilities)
+    //! i     local abilitylist = {}
+    //! i     for id, ability in ipairs(abilities) do
+    //! i         if (ability~=nil) then
+    //! i             table.insert(abilitylist, ability)
+    //! i         end
+    //! i     end
+    //! i     return abilitylist
+    //! i end
+    //! i 
+    //! i function Ability.limitedenabled(abilities)
+    //! i     for id, ability in ipairs(abilities) do
+    //! i         if (ability.limited) then
+    //! i             return true
+    //! i         end
+    //! i     end
+    //! i     return false
+    //! i end
+    //! i function Ability.unlimitedenabled(abilities)
+    //! i     for id, ability in ipairs(abilities) do
+    //! i         if (ability.limited) then
+    //! i             return true
+    //! i         end
+    //! i     end
+    //! i     return false
+    //! i end
+    
+    //end code
+    //////////////////////////////////////////////////////////////////
+    //! i ]======])
+    
+    
+    //! i writelua("BonusJASS", [======[
+    //////////////////////////////////////////////////////////////////
+    //code
+
+    //! i BonusJASS = { }
+    //! i 
+    //! i local POWER_MAX = "pm"      --> max power
+    //! i local POWER_SET = "ps"      --> power set (2^0 to 2^POWER_MAX)
+    //! i local OBJECT_ID = "bo"      --> object ids
+    //! i local IS_RANGED = "ir"      --> is ranged
+    //! i local BINARY_POWER = "bp"   --> power of 2
+    //! i local CURRENT_BONUS = "cb"  --> current bonus of unit
+    //! i 
+    //! i local function getabilityids(abilities)
+    //! i     local constants = ""
+    //! i     local prefix
+    //! i     local cur = 0
+    //! i     
+    //! i     for id, ability in ipairs(abilities) do
+    //! i         constants = constants .. "constant integer BONUS_" .. ability.name .. "=" .. tostring(cur) .. "\n"
+    //! i         cur = cur + ability.maxpower + 1
+    //! i         if (not ability.ranged) then
+    //! i             cur = cur + 1
+    //! i         end
+    //! i     end
+    //! i     
+    //! i     return constants
+    //! i end
+    //! i 
+    //! i local function getisranged(abilities)
+    //! i     local isranged = ""
+    //! i     local cur = 0
+    //! i     
+    //! i     for id, ability in ipairs(abilities) do
+    //! i         if (ability.ranged) then
+    //! i             isranged = isranged .. "set " .. IS_RANGED .. "[" .. tostring(cur) .. "]=true\n"
+    //! i         else
+    //! i             isranged = isranged .. "set " .. IS_RANGED .. "[" .. tostring(cur) .. "]=false\n"
+    //! i             cur = cur + 1
+    //! i         end
+    //! i         cur = cur + ability.maxpower + 1
+    //! i     end
+    //! i     
+    //! i     return isranged
+    //! i end
+    //! i 
+    //! i local function getpowermax(abilities)
+    //! i     local powermax = ""
+    //! i     local cur = 0
+    //! i     
+    //! i     for id, ability in ipairs(abilities) do
+    //! i         powermax = powermax .. "set " .. POWER_MAX .. "[" .. tostring(cur) .. "]=" .. tostring(ability.maxpower) .. "\n"
+    //! i         cur = cur + ability.maxpower + 1
+    //! i         if (not ability.ranged) then
+    //! i             cur = cur + 1
+    //! i         end
+    //! i     end
+    //! i     
+    //! i     return powermax
+    //! i end
+    //! i 
+    //! i local function getpowerset(abilities)
+    //! i     local powerset = ""
+    //! i     local index = 0
+    //! i     for id, ability in ipairs(abilities) do
+    //! i         if (ability.ranged) then
+    //! i             for power = 0, ability.maxpower - 1, 1 do
+    //! i                 powerset = powerset .. "set " .. POWER_SET .. "[" .. tostring(index) .. "]=" .. tostring((2^power)) .. "\n"
+    //! i                 powerset = powerset .. "set " .. BINARY_POWER .. "[" .. tostring(index) .. "]=" .. tostring(power) .. "\n"
+    //! i                 index = index + 1
+    //! i             end
+    //! i         else
+    //! i             powerset = powerset .. "set " .. POWER_SET .. "[" .. tostring(index) .. "]=" .. tostring(0) .. "\n"
+    //! i             index = index + 1
+    //! i             for power = 0, ability.maxpower - 1, 1 do
+    //! i                 powerset = powerset .. "set " .. POWER_SET .. "[" .. tostring(index) .. "]=" .. tostring((2^power)) .. "\n"
+    //! i                 powerset = powerset .. "set " .. BINARY_POWER .. "[" .. tostring(index) .. "]=" .. tostring(power) .. "\n"
+    //! i                 index = index + 1
+    //! i             end
+    //! i         end
+    //! i         powerset = powerset .. "set " .. POWER_SET .. "[" .. tostring(index) .. "]=" .. tostring(-(2^ability.maxpower)) .. "\n"
+    //! i         powerset = powerset .. "set " .. BINARY_POWER .. "[" .. tostring(index) .. "]=" .. tostring(-ability.maxpower) .. "\n"
+    //! i         index = index + 1
+    //! i     end
+    //! i     return powerset
+    //! i end
+    //! i 
+    //! i local function getobjectids(abilities)
+    //! i     local powerset = ""
+    //! i     local index = 0
+    //! i     for id, ability in ipairs(abilities) do
+    //! i         if (ability.ranged) then
+    //! i             for power = 0, ability.maxpower, 1 do
+    //! i                 powerset = powerset .. "set " .. OBJECT_ID .. "[" .. tostring(index) .. "]='" .. ability.objects[power] .. "'\/\/" .. tostring(power) .. "\n"
+    //! i                 index = index + 1
+    //! i             end
+    //! i         else
+    //! i             powerset = powerset .. "set " .. OBJECT_ID .. "[" .. tostring(index) .. "]='" .. ability.objects[0] .. "'\n"
+    //! i             index = index + 2 + ability.maxpower
+    //! i         end
+    //! i     end
+    //! i     return powerset
+    //! i end
+    //! i 
+    //! i local function getpreload(abilities)
+    //! i     local preload=""
+    //! i     for id, ability in ipairs(abilities) do
+    //! i         if (ability.ranged) then
+    //! i             for power = 0, ability.maxpower, 1 do
+    //! i                 preload = preload .. "call UnitAddAbility(u,'" .. ability.objects[power] .. "')\n"
+    //! i             end
+    //! i         else
+    //! i             preload = preload .. "call UnitAddAbility(u,'" .. ability.objects[0] .. "')\n"
+    //! i         end
+    //! i     end
+    //! i     return preload
+    //! i end
+    //! i 
+    //! i function BonusJASS.get(abilities)
+    //! i     local beginglobals = "globals\n"
+    //! i         local powermax = "private integer array " .. POWER_MAX .. "\n"
+    //! i         local powerset = "private integer array " .. POWER_SET .. "\n"
+    //! i         local binarypower = "private integer array " .. BINARY_POWER .. "\n"
+    //! i         local objectid = "private integer array " .. OBJECT_ID .. "\n"
+    //! i         local isranged = "private boolean array " .. IS_RANGED .. "\n"
+    //! i         local currentbonus = "private Table array " .. CURRENT_BONUS .. "\n"
+    //! i         local abilityids = getabilityids(abilities)
+    //! i     local endglobals = "endglobals\n"
+    //! i     
+    //! i     local begininit = "private module I\nprivate static method onInit takes nothing returns nothing\n"
+    //! i         local preloadif = "static if PRELOAD then\n"
+    //! i         local preloadend = "endif\n"
+    //! i         local preload = "local unit u\nset UnitIndexer.enabled=false\nset u = CreateUnit(Player(14),'hpea',0,0,0)\n" .. getpreload(abilities) .. "call RemoveUnit(u)\nset u = null\nset UnitIndexer.enabled=true\n"
+    //! i         local index = "call RegisterUnitIndexEvent(Condition(function thistype.index), UnitIndexer.INDEX)\n"
+    //! i         local deindex = "call RegisterUnitIndexEvent(Condition(function thistype.deindex), UnitIndexer.DEINDEX)\n"
+    //! i         local objectids = getobjectids(abilities)   --> actual object ids of abilities for UnitAddAbility
+    //! i         local powermaxes = getpowermax(abilities)   --> max power (from config)
+    //! i         local powersets = getpowerset(abilities)    --> power set: 1, 2, 4, 8, -16 etc
+    //! i         local israngeds = getisranged(abilities)    --> is ability ranged or not
+    //! i     local endinit = "endmethod\nendmodule\n"
+    //! i     
+    //! i     local beginstruct = "private struct O extends array\n"
+    //! i         local beginindex = "private static method index takes nothing returns boolean\n"
+    //! i             local indexcode =
+    //! i             [[set cb[GetIndexedUnitId()] = Table.create()]] .. "\n"
+    //! i         local endindex = "return false\nendmethod\n"
+    //! i         local begindeindex = "private static method deindex takes nothing returns boolean\n"
+    //! i             local deindexcode =
+    //! i             [[call cb[GetIndexedUnitId()].destroy()]] .. "\n"
+    //! i         local enddeindex = "return false\nendmethod\n"
+    //! i     local endstruct = "implement I\nendstruct\n"
+    //! i     
+    //! i     local jass = ""
+    //! i     
+    //! i     jass = jass .. [[//! textmacro BONUS_SCRIPT]] .. "\n"
+    //! i         jass = jass .. beginglobals
+    //! i             jass = jass .. powermax
+    //! i             jass = jass .. powerset
+    //! i             jass = jass .. binarypower
+    //! i             jass = jass .. objectid
+    //! i             jass = jass .. isranged
+    //! i             jass = jass .. currentbonus
+    //! i             jass = jass .. abilityids
+    //! i         jass = jass .. endglobals
+    //! i         
+    //! i         jass = jass .. begininit
+    //! i             jass = jass .. preloadif
+    //! i                 jass = jass .. preload
+    //! i             jass = jass .. preloadend
+    //! i             jass = jass .. index
+    //! i             jass = jass .. deindex
+    //! i             jass = jass .. objectids
+    //! i             jass = jass .. powermaxes
+    //! i             jass = jass .. powersets
+    //! i             jass = jass .. israngeds
+    //! i         jass = jass .. endinit
+    //! i         
+    //! i         jass = jass .. beginstruct
+    //! i             jass = jass .. beginindex
+    //! i                 jass = jass .. indexcode
+    //! i             jass = jass .. endindex
+    //! i             jass = jass .. begindeindex
+    //! i                 jass = jass .. deindexcode
+    //! i             jass = jass .. enddeindex
+    //! i         jass = jass .. endstruct
+    //! i     jass = jass .. [[//! endtextmacro]] .. "\n"
+    //! i     
+    //! i     return jass
+    //! i end
+
+    //end code
+    //////////////////////////////////////////////////////////////////
+    //! i ]======])
+//! endexternalblock

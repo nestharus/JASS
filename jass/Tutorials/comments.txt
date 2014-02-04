@@ -1,0 +1,403 @@
+[b]Library Header[/b]
+[jass]
+library Lib /* v1.0.0.0
+*************************************************************************************
+*
+*   This is a description about the resource, not a description about your own feelings
+*   for that special someone. Put those feelings into the post, not the resource
+*   description because we really don't care.
+*
+*************************************************************************************
+*
+*   Credits
+*
+*       My grandma
+*       -----------------------
+*
+*           For always making me cookies
+*           She always made the best cookies
+*
+*       Kangaroos all across the world
+*       -----------------------
+*
+*           For being totally awesome
+*           Kangaroos are totally sick
+*
+*************************************************************************************
+*
+*   */ uses /*
+*   
+*       */ Library          /*      url
+*       */ Library2         /*      url
+*
+************************************************************************************
+*
+*   SETTINGS
+*
+*/
+globals
+    /*
+    *   How much BLEH to put into the map
+    */
+    private constant integer BLEH = 1
+    
+    /*
+    *   How much BLEH to take out of the map
+    */
+    private constant integer BLEH = 1
+endglobals
+/*
+************************************************************************************
+*
+*    Functions
+*
+*        function MyFunction takes nothing returns integer
+*            -   Description
+*
+*        function MyFunction2 takes unit u returns nothing
+*            -   Description
+*
+************************************************************************************
+*
+*   struct MyStruct extends array
+*
+*       Description
+*       -----------------------
+*
+*           Aren't descriptions like this totally aweseome?
+*           They can even go across multiple lines o-o.
+*
+*       Creators/Destructors
+*       -----------------------
+*
+*           static method create takes nothing returns thistype
+*           method destroy takes nothing returns nothing
+*
+*       Operators
+*       -----------------------
+*
+*           static method operator [] takes integer unitTypeId returns MyStruct
+*               -   Description
+*               -
+*               -   integer unitTypeId:             Description
+*               -                                   Description line 2
+*
+*       Fields
+*       -----------------------
+*
+*           integer beans
+*               -    Description
+*               -    Description line 2
+*           real beans2
+*               -    Description
+*               -    Description line 2
+*
+*       Methods
+*       -----------------------
+*
+*           method doNothing takes nothing returns nothing
+*               -    Description
+*           method doSomething takes nothing returns nothing
+*               -    Description
+*
+************************************************************************************
+*
+*   struct MyStruct2 extends array
+*
+*       Description
+*       -----------------------
+*
+*           Aren't descriptions like this totally aweseome?
+*           They can even go across multiple lines o-o.
+*
+*       Creators/Destructors
+*       -----------------------
+*
+*           static method create takes nothing returns thistype
+*           method destroy takes nothing returns nothing
+*
+*       Operators
+*       -----------------------
+*
+*           static method operator [] takes integer unitTypeId returns MyStruct
+*               -   Description
+*               -
+*               -   integer unitTypeId:             Description
+*               -                                   Description line 2
+*
+*       Fields
+*       -----------------------
+*
+*           integer beans
+*               -    Description
+*               -    Description line 2
+*           real beans2
+*               -    Description
+*               -    Description line 2
+*
+*       Methods
+*       -----------------------
+*
+*           method doNothing takes nothing returns nothing
+*               -    Description
+*           method doSomething takes nothing returns nothing
+*               -    Description
+*
+************************************************************************************/
+[/jass]
+
+[b]Function Header[/b]
+[jass]
+function MyFunctionName takes integer i, integer i2 returns integer
+/*************************************************************************************
+*
+*   Description
+*   -----------------------
+*
+*       This function does stuff
+*
+*   Takes
+*   -----------------------
+*
+*       integer i
+*           -   This is an integer. Isn't it awesome?
+*
+*       integer i2
+*           -   This is an integer. Isn't it awesome?
+*
+*   Returns
+*   -----------------------
+*
+*       The integer returned is actually a galactic warrior from another universe
+*
+*************************************************************************************/
+    local integer galacticWarrior = i + i2
+    
+    return galacticWarrior
+endfunction
+[/jass]
+
+[b]Struct Header[/b]
+[jass]
+struct MyStruct extends array
+/*************************************************************************************
+*
+*   Description
+*   -----------------------
+*
+*       This happens to be an ordinary struct
+*
+*   Fields
+*   -----------------------
+*
+*       readonly integer i
+*
+*   Methods
+*   -----------------------
+*
+*       method do takes integer value returns nothing
+*       method who takes nothing returns integer
+*
+*************************************************************************************/
+    readonly integer i
+    
+    method do takes integer value returns nothing
+    endmethod
+    
+    method who takes nothing returns integer
+        /*
+        *   i, that's who
+        *
+        *   i r u
+        */
+        return i
+    endmethod
+endstruct
+[/jass]
+
+[b]Method Operator Header[/b]
+[jass]
+method operator uhOh takes nothing returns integer
+/*************************************************************************************
+*
+*   Description
+*   -----------------------
+*
+*       Returns an uh oh
+*
+*************************************************************************************/
+    local integer myUhOh = 1 + 5
+    
+    return myUhOh
+endmethod
+[/jass]
+
+[b]Comment[/b]
+[jass]
+/*
+*   This is a comment
+*/
+[/jass]
+
+[b]Global Group Header[/b] (group of global vars)
+[jass]
+/*************************************************************************************
+*
+*   Drunken Variables
+*
+*************************************************************************************/
+[/jass]
+
+[b]Random Block Header With Notes[/b]
+[jass]
+/*************************************************************************************
+*
+*   Title
+*   -----------------------
+*
+*       Description
+*
+*************************************************************************************/
+[/jass]
+
+[b]General Variable Description[/b]
+[jass]
+/*
+*   This variable will make you cry
+*/
+private integer variable
+
+/*
+*   This variable? Not so much
+*/
+private integer variable2
+[/jass]
+
+[b]Struct That Extends Struct Header[/b]
+[jass]
+struct Hi extends ManyThings
+/*************************************************************************************
+*
+*   Hi extends ManyThings, RandomDelegates
+*
+*       Description
+*       -----------------------
+*
+*           OMG!!
+*
+*       Creators/Destructors
+*       -----------------------
+*
+*           static method create takes nothing returns Struct
+*
+*************************************************************************************/
+endstruct
+[/jass]
+
+[b]More Examples[/b]
+[jass]
+/*
+*   Nobody likes to read a block of text, so avoid them.
+*
+*   Group common text together
+*
+*   Avoid lots of small lines
+*   -----------------------
+*
+*       Like this
+*       And this
+*       And this
+*       It's just irritating
+*       Do you see how irritating this gets?
+*       It's almost like a hyperactive
+*       Little
+*       Kid
+*       That
+*       You
+*       Just
+*       Want
+*       To
+*       Punch
+*       OMG MAKE IT STOP
+*
+*   Make lists
+*   -----------------------
+*
+*       1. I am important
+*       2. You all know that I am important and awesome
+*       3. I am just sick
+*       4. This list is actually nice to read
+*
+*   Don't make whacked essays
+*   -----------------------
+*
+*       Do whatever you can to avoid a block of text because NOBODY likes a block of text.
+*       Like this here is a crazy block of text that you will likely never read.
+*       This is just more text that you'll have to read through in order to get the main
+*       point of whatever is below this text. It'd almost be faster, in fact it would be
+*       faster to just decipher the code rather than to sit through this huge long
+*       essay that you just don't want to read because reading takes time and nobody has
+*       time to spare on your long wordy words for short things. And finally I reach my point.
+*       The below line, yes, the below line, will add EXACTLY 1 to the variable because I say it will.
+*       Oh my, you must be very upset with me right now, but I want my lesson to be very clear.
+*       NOBODY LIKES BLOCKS OF TEXT
+*
+*   Always make clear and informative comments. I can see that you are increasing some
+*   variable by one. What I want to know is WHY you are increasing it, not that you are increasing it.
+*   You don't need to explain that you have just added 1 to a variable.
+*
+*/
+    set myAwesomeVariable = myAwesomeVariable + 1
+    
+/*
+*   More pointless explanations
+*/
+
+/*
+*   This is a method that takes nothing and returns nothing
+*/
+method something takes nothing returns nothing
+endmethod
+
+/*
+*   This is an integer that I add 1 to every time I go through a loop
+*/
+local integer thisIsMyIntegerThatIAddOneToEveryTimeIGoThroughALoop = 0
+loop
+    set thisIsMyIntegerThatIAddOneToEveryTimeIGoThroughALoop = thisIsMyIntegerThatIAddOneToEveryTimeIGoThroughALoop + 1
+    
+    /*
+    *   I am going to loop 500 times
+    */
+    exitwhen thisIsMyIntegerThatIAddOneToEveryTimeIGoThroughALoop == 500
+endloop
+
+/*
+*   Good explanations
+*/
+
+/*
+*   Do a method header here!
+*/
+method something takes nothing returns nothing
+endmethod
+
+/*
+*   Initialize first 500 instances to improve performance
+*/
+local integer instance = 0
+loop
+    set instance = instance + 1
+    exitwhen instance == 500
+endloop
+[/jass]
+
+[b]Scrollbars Are Bad[/b]
+[jass]
+/*
+*   Never make a line that is so long that it causes a scrollbar. It is really annoying to have to scroll back and forth in order
+*   to read really long comments. Learn when to break your lines so that you can avoid the infamous scrollbar. Hopefully you can
+*   see by this just how annoying it is to scroll back and forth. Apply this lesson to all code. If you have a really long method call, be sure to split it up by using /* */.
+*   The editor will continue to show text that will not show within the width of the JASS box on forums, so use your best judgment. If you see a scrollbar for your code in the JASS box, then modify your code to get rid of the scrollbar until that bar goes away.
+*/
+[/jass]

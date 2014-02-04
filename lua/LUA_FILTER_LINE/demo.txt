@@ -1,0 +1,35 @@
+local jasscode =
+[[
+//comment
+
+
+function hello takes nothing returns nothing
+endfunction
+
+globals
+
+	integer i
+
+
+	//not useful variable
+	//integer b
+
+endglobals
+
+//another comment
+]]
+
+jasscode = jasscode:trim()
+jasscode = jasscode:filterline([[//, true]])
+print(jasscode)
+
+
+
+
+Output
+
+	function hello takes nothing returns nothing
+	endfunction
+	globals
+	integer i
+	endglobals

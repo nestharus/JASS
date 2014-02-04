@@ -1,0 +1,1 @@
+Retrieves a proc that can be attached to units on index or w/e you want really. This creates 1 buff for each level associated with the dummy ability so that you can create special effects or w/e for each level ( if GetUnitAbilityLevel(target, buff) > 0) then )

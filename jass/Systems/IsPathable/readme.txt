@@ -1,0 +1,3 @@
+Not to be confused with IsTerrainPathable, this script will check to see if a point is currently pathable given a pathing type. For example, it will be able to detect if a building is at that point, unlike IsTerrainPathable, which only checks the terrains pathability (including doodads and what not).
+
+This takes advantage of SetUnitPosition in order to determine whether a point is pathable or not. However, SetUnitPosition may bug in cases where the closest pathable point is at least 1024 units away (in which case the unit is just placed at the original point regardless as to whether it was pathable or not). This avoid that bug with a special algorithm that no other is pathable resource has.
