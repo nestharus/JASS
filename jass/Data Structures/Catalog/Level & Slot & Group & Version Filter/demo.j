@@ -27,6 +27,8 @@ struct ItemCatalog extends array
     private static method onInit takes nothing returns nothing
         local integer cver
         
+        call DestroyTimer(GetExpiredTimer())
+        
         set catalog = LevelGroupSlotVersionCatalog.create()
         
         set itemCharge = Table.create()

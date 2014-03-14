@@ -17,20 +17,20 @@
 *           -------------------------------------------------------------------------------------------------------
 *
 *       method addGroup takes integer ver, integer groupId, integer groupId2 returns nothing
-*           -   Adds groupId to groupId2 in version ver.
+*           -   Adds groupId2 to groupId in version ver.
 *
 *                                                         Notes
 *           -------------------------------------------------------------------------------------------------------
 *           -
-*           -   groupId2 will be able to use any items that groupId is able to use
+*           -   groupId will be able to use any items that groupId2 is able to use
 *           -
-*           -   This will only be effective from ver and up, but groupId2 will be able to use anything groupId can use from
+*           -   This will only be effective from ver and up, but groupId will be able to use anything groupId2 can use from
 *           -   any version.
 *           -
 *           -------------------------------------------------------------------------------------------------------
 *
 *       method get takes integer ver, integer groupId, integer minLevel, integer maxLevel returns Catalog
-*           -   Retrieves a temporary catalog (automatically destroyed later)
+*           -   Builds a temporary catalog (automatically destroyed later)
 *
 *                                                         Notes
 *           -------------------------------------------------------------------------------------------------------
@@ -68,8 +68,8 @@ library_once TempCatalog uses Catalog
         endmethod
     endstruct
 endlibrary
-library_once LevelTree uses AVL
-    struct LevelTree extends array
+library_once IntTree uses AVL
+    struct IntTree extends array
         private method lessThan takes thistype val returns boolean
             return integer(this)<integer(val)
         endmethod
@@ -80,14 +80,14 @@ library_once LevelTree uses AVL
         implement AVL
     endstruct
 endlibrary
-library_once LevelFilter uses LevelTree
+library_once LevelFilter uses IntTree, Table, Catalog, TempCatalog
     struct LevelFilter extends array
         private Table catalogTable
-        private LevelTree tree
+        private IntTree tree
         
         method get takes integer minLevel, integer maxLevel returns Catalog
             local Catalog catalog
-            local LevelTree level
+            local IntTree level
             
             set level = tree.searchClose(minLevel,false)
             if (0 != level) then
@@ -106,7 +106,7 @@ library_once LevelFilter uses LevelTree
         endmethod
         
         method getCatalog takes integer level returns Catalog
-            local LevelTree levelCatalog
+            local Catalog levelCatalog
             
             set levelCatalog = tree.search(level)
             
@@ -125,7 +125,7 @@ library_once LevelFilter uses LevelTree
         static method create takes nothing returns thistype
             local thistype this
             
-            set this = LevelTree.create()
+            set this = IntTree.create()
             
             set tree = this
             set catalogTable = Table.create()
@@ -134,7 +134,6 @@ library_once LevelFilter uses LevelTree
         endmethod
     endstruct
 endlibrary
-
 library LevelGroupVersionCatalog uses LevelFilter, TempCatalog
     private module GroupFilterInit
         private static method onInit takes nothing returns nothing
@@ -144,29 +143,29 @@ library LevelGroupVersionCatalog uses LevelFilter, TempCatalog
     
     private struct GroupFilter extends array
         private static integer instanceCount = 0
-        private Table groupFilterTable
-        private static Table levelFilter
-        private Table groupIdTable
+        private Table groupFilterTable              //groupFilterTable[groupId] -> groupFilter
+        private static Table levelFilter            //levelFilter[groupFilter] -> LevelFilter
+        private Table groupIdTable                  //groupIdTable[groupFilter] -> groupId
+        private Table groupIds                      //group[groupCount] -> groupId
+        private integer groupCount
         
-        method getFilter takes integer groupId returns Catalog
-            return groupFilterTable[groupId]
-        endmethod
-        
-        method getGroupId takes integer groupFilter returns integer
+        private method getGroupId takes integer groupFilter returns integer
             return groupIdTable[groupFilter]
         endmethod
         
-        method getGroupFilter takes integer groupId returns Catalog
+        private method getGroupFilter takes integer groupId returns Catalog
             local GroupFilter groupFilter = groupFilterTable[groupId]
             
             if (0 == groupFilter) then
                 set groupFilter = Catalog.create()
                 set levelFilter[groupFilter] = LevelFilter.create()
                 
-                call Catalog(groupFilter).add(groupFilter)
                 set groupFilterTable[groupId] = groupFilter
                 
                 set groupIdTable[groupFilter] = groupId
+                
+                set groupIds[groupCount] = groupId
+                set groupCount = groupCount + 1
             endif
             
             return groupFilter
@@ -177,15 +176,18 @@ library LevelGroupVersionCatalog uses LevelFilter, TempCatalog
         endmethod
         
         method get takes integer groupId, integer minLevel, integer maxLevel returns Catalog
+            return getEv(groupId, minLevel, maxLevel)
+        endmethod
+        
+        private method getEv takes integer groupId, integer minLevel, integer maxLevel returns Catalog
             local Catalog catalog
             local CatalogLoop looper
             local GroupFilter groupFilter
             local boolean array hit
             
             set catalog = TempCatalog.create()
-            
-            set groupFilter = getFilter(groupId)
-            set looper = CatalogLoop.create(groupFilter,1)
+            set groupFilter = getGroupFilter(groupId)
+            set looper = CatalogLoop.create(groupFilter, 1)
             loop
                 set groupFilter = looper.next
                 exitwhen 0 == groupFilter
@@ -198,6 +200,40 @@ library LevelGroupVersionCatalog uses LevelFilter, TempCatalog
             return catalog
         endmethod
         
+        method inherit takes GroupFilter groupFilter returns nothing
+            call inheritEv(groupFilter)
+        endmethod
+        
+        private method inheritEv takes GroupFilter groupFilter returns nothing
+            local integer groupCount = groupFilter.groupCount
+            local integer groupId
+            
+            local CatalogLoop looper
+            local Catalog groupFilterCatalog
+            local Catalog oldGroupFilterCatalog
+            
+            loop
+                exitwhen 0 == groupCount
+                set groupCount = groupCount - 1
+                
+                set groupId = groupFilter.groupIds[groupCount]
+                set groupFilterCatalog = getGroupFilter(groupId)
+                set oldGroupFilterCatalog = groupFilter.getGroupFilter(groupId)
+                call groupFilterCatalog.add(oldGroupFilterCatalog)
+                call groupFilterCatalog.addCatalog(oldGroupFilterCatalog)
+                
+                set looper = CatalogLoop.create(oldGroupFilterCatalog, 1)
+                loop
+                    set oldGroupFilterCatalog = looper.next
+                    exitwhen 0 == oldGroupFilterCatalog
+                    
+                    set oldGroupFilterCatalog = getGroupFilter(groupFilter.groupIdTable[oldGroupFilterCatalog])
+                    call groupFilterCatalog.add(oldGroupFilterCatalog)
+                    call groupFilterCatalog.addCatalog(oldGroupFilterCatalog)
+                endloop
+            endloop
+        endmethod
+        
         static method create takes nothing returns thistype
             local thistype this
             
@@ -206,12 +242,17 @@ library LevelGroupVersionCatalog uses LevelFilter, TempCatalog
             
             set groupFilterTable = Table.create()
             set groupIdTable = Table.create()
+            set groupIds = Table.create()
+            set groupCount = 0
             
             return this
         endmethod
         
-        method addGroup takes integer groupId, integer groupId2 returns nothing
-            call getGroupFilter(groupId).addCatalog(getGroupFilter(groupId2))
+        method addGroup takes Catalog groupId, Catalog groupId2 returns nothing
+            set groupId = getGroupFilter(groupId)
+            set groupId2 = getGroupFilter(groupId2)
+            call groupId.add(groupId2)
+            call groupId.addCatalog(groupId2)
         endmethod
         
         implement GroupFilterInit
@@ -221,23 +262,39 @@ library LevelGroupVersionCatalog uses LevelFilter, TempCatalog
         private static integer instanceCount = 0
         
         private Table groupFilterTable
+        private integer ver
+        private Table prev
         
-        method get takes integer ver, integer groupId, integer minLevel, integer maxLevel returns Catalog
-            local Catalog catalog = TempCatalog.create()
-            call catalog.addCatalog(GroupFilter(groupFilterTable[ver]).get(groupId, minLevel, maxLevel))
-            return catalog
+        private method createVersion takes integer ver returns nothing
+            local integer lastVersion = prev[0]
+            local GroupFilter filter = GroupFilter.create()
+        
+            set groupFilterTable[ver] = filter
+            
+            if (lastVersion != 0) then
+                call filter.inherit(groupFilterTable[lastVersion])
+            endif
+            
+            set prev[ver] = lastVersion
+            set prev[0] = ver
+            
+            set this.ver = ver
         endmethod
         
-        method getGroup takes integer ver returns GroupFilter
-            if (0 == groupFilterTable[ver]) then
-                set groupFilterTable[ver] = GroupFilter.create()
+        method getGroupFilter takes integer ver returns GroupFilter
+            if (this.ver < ver) then
+                call createVersion(ver)
             endif
             
             return groupFilterTable[ver]
         endmethod
         
-        method getCatalog takes integer ver, integer groupId, integer level returns integer
-            return getGroup(ver).getCatalog(groupId, level)
+        method get takes integer ver, integer groupId, integer minLevel, integer maxLevel returns Catalog
+            return getGroupFilter(ver).get(groupId, minLevel, maxLevel)
+        endmethod
+        
+        method getCatalog takes integer ver, integer groupId, integer level returns Catalog
+            return getGroupFilter(ver).getCatalog(groupId, level)
         endmethod
         
         static method create takes nothing returns thistype
@@ -246,117 +303,29 @@ library LevelGroupVersionCatalog uses LevelFilter, TempCatalog
             
             set groupFilterTable = Table.create()
             
+            set prev = Table.create()
+            
+            set ver = 0
+            
             return this
         endmethod
     endstruct
     
-    private module LevelGroupVersionCatalogInit
-        private static method onInit takes nothing returns nothing
-            set eUpdate = CreateTrigger()
-            call TriggerAddCondition(eUpdate, Condition(function thistype.update))
-        endmethod
-    endmodule
     struct LevelGroupVersionCatalog extends array
-        private static integer instanceCount = 0
-    
-        private VersionFilter versionFilter
-        
-        private Table groupTable
-        private Table groups
-        private integer groupCount
-        private integer ver
-        
-        private Table groupAddTable
-        
-        private static trigger eUpdate
-        private static integer toUpdate
-        
-        private static method update takes nothing returns boolean
-            local thistype this = toUpdate
-            local integer xver = ver - 1
-            local integer c = groupCount
-            local CatalogLoop looper
-            local integer groupId
-            local Catalog catalog
-            local Catalog catalogNew
-            loop
-                exitwhen 0 == c
-                set c = c - 1
-                
-                call versionFilter.getGroup(ver).getGroupFilter(groups[c]).addCatalog(versionFilter.getGroup(xver).getGroupFilter(groups[c]))
-                
-                set looper = CatalogLoop.create(groupAddTable[groups[c]], 1)
-                loop
-                    set groupId = looper.next
-                    exitwhen 0 == groupId
-                    call versionFilter.getGroup(ver).addGroup(groups[c], groupId)
-                endloop
-            endloop
-            return false
-        endmethod
-        
         method addGroup takes integer ver, integer groupId, integer groupId2 returns nothing
-            call versionFilter.getGroup(ver).addGroup(groupId, groupId2)
-            if (this.ver < ver) then
-                set this.ver = ver
-                if (1 < ver) then
-                    set toUpdate = this
-                    call TriggerEvaluate(eUpdate)
-                endif
-            endif
-            if (not groupTable.boolean.has(groupId)) then
-                set groupAddTable[groupId] = Catalog.create()
-                set groupTable.boolean[groupId] = true
-                set groups[groupCount] = groupId
-                set groupCount = groupCount + 1
-            endif
-            if (not groupTable.boolean.has(groupId2)) then
-                set groupAddTable[groupId2] = Catalog.create()
-                set groupTable.boolean[groupId2] = true
-                set groups[groupCount] = groupId2
-                set groupCount = groupCount + 1
-            endif
-            call CatalogAdd(groupAddTable[groupId], groupId2)
+            call VersionFilter(this).getGroupFilter(ver).addGroup(groupId, groupId2)
         endmethod
         
         method get takes integer ver, integer groupId, integer minLevel, integer maxLevel returns Catalog
-            return versionFilter.get(ver, groupId, minLevel, maxLevel)
+            return VersionFilter(this).get(ver, groupId, minLevel, maxLevel)
         endmethod
     
         method add takes integer rawId, integer ver, integer groupId, integer level returns nothing
-            local Catalog catalog
-            
-            set catalog = versionFilter.getCatalog(ver, groupId, level)
-            
-            if (this.ver < ver) then
-                set this.ver = ver
-                if (1 < ver) then
-                    set toUpdate = this
-                    call TriggerEvaluate(eUpdate)
-                endif
-            endif
-            if (not groupTable.boolean.has(groupId)) then
-                set groupAddTable[groupId] = Catalog.create()
-                set groupTable.boolean[groupId] = true
-                set groups[groupCount] = groupId
-                set groupCount = groupCount + 1
-            endif
-            
-            call catalog.add(rawId)
+            call VersionFilter(this).getCatalog(ver, groupId, level).add(rawId)
         endmethod
         
         static method create takes nothing returns thistype
-            local thistype this = instanceCount + 1
-            set instanceCount = this
-            
-            set versionFilter = VersionFilter.create()
-            set groupTable = Table.create()
-            set groups = Table.create()
-            set groupAddTable = Table.create()
-            
-            return this
+            return VersionFilter.create()
         endmethod
-    
-        implement LevelGroupVersionCatalogInit
     endstruct
 endlibrary

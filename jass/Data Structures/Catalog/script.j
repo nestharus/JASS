@@ -1,4 +1,4 @@
-library Catalog /* v1.2.0.1
+library Catalog /* v1.2.1.0
 *************************************************************************************
 *
 *   A system used to generate catalogs of objects by hashing raw code ids into indexed
@@ -41,6 +41,20 @@ library Catalog /* v1.2.0.1
 *           -   Retrieves the index+indexDelta value in the catalog loop. An indexDelta of 1 would
 *           -   retrieve the next value.
 *
+*       function GetFirstAddedCatalog takes Catalog catalog returns integer
+*           -   Get the first catalog added to catalog
+*       function GetNextAddedCatalog takes Catalog catalog, Catalog addedCatalog returns integer
+*           -   Get next added catalog from current added catalog
+*
+*           local Catalog subCatalog = GetFirstAddedCatalog(catalog)
+*           loop
+*               exitwhen subCatalog == catalog
+*
+*               //code
+*
+*               set subCatalog = GetNextAddedCatalog(catalog, subCatalog)
+*           endloop
+*
 ************************************************************************************
 *
 *   struct Catalog extends array
@@ -64,6 +78,11 @@ library Catalog /* v1.2.0.1
 *           -   Adds new value to catalog
 *       method addCatalog takes Catalog catalog returns nothing
 *           -   Adds catalog to catalog
+*
+*       method operator firstCatalog takes nothing returns thistype
+*           -   See function
+*       method getNextCatalog takes Catalog addedCatalog returns thistype
+*           -   See function
 *
 *   module Catalog
 *
@@ -91,6 +110,11 @@ library Catalog /* v1.2.0.1
 *       static method addCatalog takes Catalog catalog returns nothing
 *           -   Adds a catalog and all of its inner catalogs to the catalog.
 *           -   Catalogs already inside of the catalog are not added.
+*
+*       static method operator firstCatalog takes nothing returns thistype
+*           -   See function
+*       method operator getNextCatalog takes nothing returns thistype
+*           -   See function
 *
 *   struct CatalogLoop extends array
 *
@@ -363,6 +387,12 @@ library Catalog /* v1.2.0.1
             set pp[b][b]=t
         debug endif
     endfunction
+    function GetFirstAddedCatalog takes integer t returns integer
+        return en[t][t]
+    endfunction
+    function GetNextAddedCatalog takes integer t, integer b returns integer
+        return en[t][b]
+    endfunction
     
     function CatalogLoopDestroy takes integer cl returns nothing
         set clr[cl]=clr[0]
@@ -483,6 +513,12 @@ library Catalog /* v1.2.0.1
         method operator count takes nothing returns integer
             return CatalogCount(this)
         endmethod
+        method operator firstCatalog takes nothing returns thistype
+            return GetFirstAddedCatalog(this)
+        endmethod
+        method getNextCatalog takes integer catalog returns thistype
+            return GetNextAddedCatalog(this, catalog)
+        endmethod
     endstruct
     struct CatalogLoop extends array
         static method create takes Catalog catalog, integer startIndex returns CatalogLoop
@@ -513,10 +549,16 @@ library Catalog /* v1.2.0.1
             call CatalogAdd(catalog, v)
         endmethod
         static method addCatalog takes integer catalog returns nothing
-            call CatalogAddCatalog(thistype.catalog,catalog)
+            call CatalogAddCatalog(thistype.catalog, catalog)
+        endmethod
+        static method operator firstCatalog takes nothing returns thistype
+            return GetFirstAddedCatalog(thistype.catalog, thistype.catalog)
+        endmethod
+        method operator getNextCatalog takes nothing returns thistype
+            return GetNextAddedCatalog(thistype.catalog, this)
         endmethod
         private static method onInit takes nothing returns nothing
-            set catalog=CatalogCreate()
+            set catalog = CatalogCreate()
         endmethod
     endmodule
     module CatalogLoop

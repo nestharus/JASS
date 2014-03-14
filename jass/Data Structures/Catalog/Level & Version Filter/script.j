@@ -5,19 +5,17 @@
 *       static method create takes nothing returns LevelVersionCatalog
 *
 *       method add takes integer rawId, integer ver, integer level returns nothing
-*           -   Adds new item to catalog
+*           -   Adds a new item to the catalog.
 *
 *                                                         Notes
 *           -------------------------------------------------------------------------------------------------------
 *           -
 *           -   ver is the version of the game that the item was added to
 *           -
-*           -   level is the level that the hero must be in order to use the item
-*           -
 *           -------------------------------------------------------------------------------------------------------
-
+*
 *       method get takes integer ver, integer minLevel, integer maxLevel returns Catalog
-*           -   Retrieves a temporary catalog (automatically destroyed later)
+*           -   Builds a temporary catalog (automatically destroyed later)
 *
 *                                                         Notes
 *           -------------------------------------------------------------------------------------------------------
@@ -52,8 +50,8 @@ library_once TempCatalog uses Catalog
         endmethod
     endstruct
 endlibrary
-library_once LevelTree uses AVL
-    struct LevelTree extends array
+library_once IntTree uses AVL
+    struct IntTree extends array
         private method lessThan takes thistype val returns boolean
             return integer(this)<integer(val)
         endmethod
@@ -64,14 +62,14 @@ library_once LevelTree uses AVL
         implement AVL
     endstruct
 endlibrary
-library_once LevelFilter uses LevelTree
+library_once LevelFilter uses IntTree, Table, Catalog, TempCatalog
     struct LevelFilter extends array
         private Table catalogTable
-        private LevelTree tree
+        private IntTree tree
         
         method get takes integer minLevel, integer maxLevel returns Catalog
             local Catalog catalog
-            local LevelTree level
+            local IntTree level
             
             set level = tree.searchClose(minLevel,false)
             if (0 != level) then
@@ -90,7 +88,7 @@ library_once LevelFilter uses LevelTree
         endmethod
         
         method getCatalog takes integer level returns Catalog
-            local LevelTree levelCatalog
+            local Catalog levelCatalog
             
             set levelCatalog = tree.search(level)
             
@@ -109,7 +107,7 @@ library_once LevelFilter uses LevelTree
         static method create takes nothing returns thistype
             local thistype this
             
-            set this = LevelTree.create()
+            set this = IntTree.create()
             
             set tree = this
             set catalogTable = Table.create()
@@ -118,29 +116,43 @@ library_once LevelFilter uses LevelTree
         endmethod
     endstruct
 endlibrary
-    
 library LevelVersionCatalog uses LevelFilter, TempCatalog
     private struct VersionFilter extends array
         private static integer instanceCount = 0
-    
-        private Table levelFilterTable
         
-        method get takes integer ver, integer minLevel, integer maxLevel returns Catalog
-            local Catalog catalog = TempCatalog.create()
-            loop
-                exitwhen 0 == ver
-                call catalog.addCatalog(LevelFilter(levelFilterTable[ver]).get(minLevel, maxLevel))
-                set ver = ver - 1
-            endloop
-            return catalog
+        private Table levelFilterTable
+        private integer ver
+        private Table prev
+        
+        private method createVersion takes integer ver returns nothing
+            set levelFilterTable[ver] = LevelFilter.create()
+            
+            set prev[ver] = prev[0]
+            set prev[0] = ver
+            
+            set this.ver = ver
         endmethod
         
         method getLevelFilter takes integer ver returns LevelFilter
-            if (0 == levelFilterTable[ver]) then
-                set levelFilterTable[ver] = LevelFilter.create()
+            if (this.ver < ver) then
+                call createVersion(ver)
             endif
             
             return levelFilterTable[ver]
+        endmethod
+        
+        method get takes integer ver, integer minLevel, integer maxLevel returns Catalog
+            local Catalog catalog = TempCatalog.create()
+            
+            loop
+                exitwhen ver == 0
+                
+                call catalog.addCatalog(getLevelFilter(ver).get(minLevel, maxLevel))
+                
+                set ver = prev[ver]
+            endloop
+            
+            return catalog
         endmethod
         
         method getCatalog takes integer ver, integer level returns Catalog
@@ -153,29 +165,25 @@ library LevelVersionCatalog uses LevelFilter, TempCatalog
             
             set levelFilterTable = Table.create()
             
+            set prev = Table.create()
+            
+            set ver = 0
+            
             return this
         endmethod
     endstruct
     
     struct LevelVersionCatalog extends array
-        private static integer instanceCount = 0
-        private static VersionFilter versionFilter
-        
         method get takes integer ver, integer minLevel, integer maxLevel returns Catalog
-            return versionFilter.get(ver, minLevel, maxLevel)
+            return VersionFilter(this).get(ver, minLevel, maxLevel)
         endmethod
     
         method add takes integer rawId, integer ver, integer level returns nothing
-            call versionFilter.getCatalog(ver, level).add(rawId)
+            call VersionFilter(this).getCatalog(ver, level).add(rawId)
         endmethod
         
         static method create takes nothing returns thistype
-            local thistype this = instanceCount + 1
-            set instanceCount = this
-            
-            set versionFilter = VersionFilter.create()
-            
-            return this
+            return VersionFilter.create()
         endmethod
     endstruct
 endlibrary
