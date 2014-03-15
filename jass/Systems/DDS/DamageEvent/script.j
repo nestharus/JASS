@@ -1,4 +1,4 @@
-library DamageEvent /* v1.0.0.11
+library DamageEvent /* v1.0.1.0
 *************************************************************************************
 *
 *   Damage Event plugin for DDS
@@ -8,6 +8,10 @@ library DamageEvent /* v1.0.0.11
 *   */uses/*
 *
 *       */ DDS                      /*      hiveworkshop.com/forums/spells-569/framework-dds-damage-detection-system-231238/
+*
+*       This is only required if GUI is being used with PriorityEvent
+*       */ optional AVL             /*
+*
 *       */ optional PriorityEvent   /*      hiveworkshop.com/forums/jass-resources-412/snippet-priority-event-213573/
 *
 *************************************************************************************
@@ -172,9 +176,23 @@ module DAMAGE_EVENT_RESPONSE_BEFORE
                 set sourceId_p = GetUnitUserData(GetEventDamageSource())
                 set damage_p = GetEventDamage()
                 set sourcePlayer_p = GetOwningPlayer(sourceId_p.unit)
+                static if ENABLE_GUI then
+                    set udg_DDS_damage = damage_p
+                    set udg_DDS_target = GetTriggerUnit()
+                    set udg_DDS_source = GetEventDamageSource()
+                    set udg_DDS_targetId = targetId_p
+                    set udg_DDS_sourceId = sourceId_p
+                    set udg_DDS_sourcePlayer = sourcePlayer_p
+                endif
 endmodule
 module DAMAGE_EVENT_RESPONSE
                 call ANY.fire()
+                static if ENABLE_GUI then
+                    static if not LIBRARY_PriorityEvent then
+                        set udg_DDS_event = 1
+                        set udg_DDS_event = 0
+                    endif
+                endif
 endmodule
 module DAMAGE_EVENT_RESPONSE_AFTER
                 
@@ -184,7 +202,91 @@ module DAMAGE_EVENT_RESPONSE_CLEANUP
                 set sourceId_p = prevSource
                 set damage_p = prevDamage
                 set sourcePlayer_p = GetOwningPlayer(sourceId_p.unit)
+                static if ENABLE_GUI then
+                    set udg_DDS_damage = damage_p
+                    set udg_DDS_target = GetUnitById(targetId_p)
+                    set udg_DDS_source = GetUnitById(sourceId_p)
+                    set udg_DDS_targetId = targetId_p
+                    set udg_DDS_sourceId = sourceId_p
+                    set udg_DDS_sourcePlayer = sourcePlayer_p
+                endif
 endmodule
+
+        static if LIBRARY_PriorityEvent then
+            static if ENABLE_GUI then
+                private struct GUI_Priorities extends array
+                    method lessThan takes thistype value returns boolean
+                        return integer(this) < integer(value)
+                    endmethod
+                    
+                    method greaterThan takes thistype value returns boolean
+                        return integer(this) > integer(value)
+                    endmethod
+                    
+                    implement AVL
+                endstruct
+                module DAMAGE_EVENT_GUI_GLOBALS
+                    static trigger eventRegister
+                endmodule
+                module DAMAGE_EVENT_GUI
+                    private static GUI_Priorities array stack
+                    private static integer stackSize = 0
+                    private static GUI_Priorities priority
+                    private static method onEvent takes nothing returns boolean
+                        set udg_DDS_event = stack[stackSize].value
+                        
+                        set stack[stackSize] = stack[stackSize].prev
+                        
+                        if (stack[stackSize].head) then
+                            set stackSize = stackSize - 1
+                        endif
+                    
+                        return false
+                    endmethod
+                    private static method onEventStart takes nothing returns boolean
+                        set stackSize = stackSize + 1
+                        set stack[stackSize] = priority.prev
+                        
+                        return false
+                    endmethod
+                    private static method DDS_eventRegister takes nothing returns boolean
+                        local integer priority
+                        
+                        if (udg_DDS_eventRegister < 0) then
+                            set priority = R2I(udg_DDS_eventRegister - .5)
+                        else
+                            set priority = R2I(udg_DDS_eventRegister + .5)
+                        endif
+                        
+                        call thistype.priority.add(priority)
+                        call DDS.ANY.register(Condition(function thistype.onEvent), priority)
+                        
+                        return false
+                    endmethod
+                    private static method DDS_initVariables takes nothing returns nothing
+                        set GUI.eventRegister = CreateTrigger()
+                        call TriggerRegisterVariableEvent(GUI.eventRegister, "udg_DDS_eventRegister", LESS_THAN, 0)
+                        call TriggerRegisterVariableEvent(GUI.eventRegister, "udg_DDS_eventRegister", GREATER_THAN, 1)
+                        call TriggerAddCondition(GUI.eventRegister, Condition(function thistype.DDS_eventRegister))
+                    endmethod
+                    
+                    private static method onInit takes nothing returns nothing
+                        call DDS_initVariables()
+                        
+                        set priority = GUI_Priorities.create()
+                        
+                        call priority.add(-1)
+                        call priority.add(0)
+                        call priority.add(1)
+                        
+                        call DDS.ANY.register(Condition(function thistype.onEventStart), 2147483647)
+                        call DDS.ANY.register(Condition(function thistype.onEvent), -1)
+                        call DDS.ANY.register(Condition(function thistype.onEvent), 0)
+                        call DDS.ANY.register(Condition(function thistype.onEvent), 1)
+                    endmethod
+                endmodule
+            endif
+        endif
     endscope
     //! endtextmacro
-endlibrary{\rtf1}
+endlibrary

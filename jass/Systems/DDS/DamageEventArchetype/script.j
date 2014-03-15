@@ -1,4 +1,4 @@
-library DamageEventArchetype /* v1.0.1.3
+library DamageEventArchetype /* v1.0.2.0
 *************************************************************************************
 *
 *   Damage Event Archetype plugin for DDS
@@ -84,6 +84,11 @@ endglobals
                 
                 static method operator damageCode= takes UnitIndex u returns nothing
                     set damageCode_p = u
+                    static if ENABLE_GUI then
+                        call DisableTrigger(GUI.damageCode)
+                        set udg_DDS_damageCode = u
+                        call EnableTrigger(GUI.damageCode)
+                    endif
                 endmethod
                 static method operator damageCode takes nothing returns UnitIndex
                     return damageCode_p
@@ -116,6 +121,11 @@ endglobals
             endmodule
             module DAMAGE_EVENT_ENABLE
                 method operator enabled= takes boolean b returns nothing
+                    static if ENABLE_GUI then
+                        set udg_DDS_enabled[this] = b
+                        set udg_DDS_enable = 0
+                    endif
+                
                     if (b) then
                         call EnableTrigger(Trigger(this).parent.trigger)
                         call UnitAddAbility(UnitIndex(this).unit, DAMAGE_EVENT_ARCHETYPE_PLUGIN_ABILITY)
@@ -175,6 +185,12 @@ module DAMAGE_EVENT_ARCHETYPE_RESPONSE_BEFORE
                     set archetype_p = Archetype.CODE
                     set damageCode_p = 0
                 endif
+                
+                static if ENABLE_GUI then
+                    set DDS.damage = damage_p
+                    set udg_DDS_damageCode = damageCode_p
+                    set udg_DDS_archetype = archetype_p
+                endif
 endmodule
 module DAMAGE_EVENT_ARCHETYPE_RESPONSE
                 
@@ -184,7 +200,33 @@ module DAMAGE_EVENT_ARCHETYPE_RESPONSE_AFTER
 endmodule
 module DAMAGE_EVENT_ARCHETYPE_RESPONSE_CLEANUP
                 set archetype_p = prevArchetype
+                static if ENABLE_GUI then
+                    set udg_DDS_archetype = archetype_p
+                endif
 endmodule
+
+        module DAMAGE_EVENT_ARCHETYPE_GUI_GLOBALS
+            static trigger damageCode
+        endmodule
+        module DAMAGE_EVENT_ARCHETYPE_GUI
+            private static method DDS_damageCode takes nothing returns boolean
+                set DDS.damageCode = udg_DDS_damageCode
+                return false
+            endmethod
+            private static method DDS_initVariables takes nothing returns nothing
+                set GUI.damageCode = CreateTrigger()
+                call TriggerRegisterVariableEvent(GUI.damageCode, "udg_DDS_damageCode", GREATER_THAN, 0.)
+                call TriggerAddCondition(GUI.damageCode, Condition(function thistype.DDS_damageCode))
+                
+                set udg_DDS_ARCHETYPE_SPELL = DDS.Archetype.SPELL
+                set udg_DDS_ARCHETYPE_PHYSICAL = DDS.Archetype.PHYSICAL
+                set udg_DDS_ARCHETYPE_CODE = DDS.Archetype.CODE
+            endmethod
+            
+            private static method onInit takes nothing returns nothing
+                call DDS_initVariables()
+            endmethod
+        endmodule
     endscope
     //! endtextmacro
 endlibrary

@@ -1,4 +1,4 @@
-library DamageEventModification /* v1.0.2.6
+library DamageEventModification /* v1.0.3.0
 *************************************************************************************
 *
 *   Damage Event Modification plugin for DDS
@@ -121,15 +121,27 @@ library DamageEventModification /* v1.0.2.6
         module DAMAGE_EVENT_MODIFICATION_API
             readonly static real damageOriginal = 0
             
-            static method operator damage= takes real newDamage returns nothing
-                set damage_p = newDamage
-            endmethod
             static method operator damageModifiedAmount takes nothing returns real
                 return damage_p - damageOriginal
             endmethod
             static method operator life takes nothing returns real
                 return GetUnitLife(targetId_p)
             endmethod
+            static method operator damage= takes real newDamage returns nothing
+                set damage_p = newDamage
+                
+                static if ENABLE_GUI then
+                    call DisableTrigger(GUI.damage)
+                    call DisableTrigger(GUI.life)
+                    set udg_DDS_damage = newDamage
+                    set udg_DDS_damageOriginal = DDS.damageOriginal
+                    set udg_DDS_damageModifiedAmount = DDS.damageModifiedAmount
+                    set udg_DDS_life = DDS.life
+                    call EnableTrigger(GUI.damage)
+                    call EnableTrigger(GUI.life)
+                endif
+            endmethod
+            
         endmodule
         module DAMAGE_EVENT_MODIFICATION_INIT
             set UnitIndexer.enabled = false
@@ -162,6 +174,10 @@ module DAMAGE_EVENT_MODIFICATION_RESPONSE_BEFORE
                 set actualDamage = damage_p
                 set damageOriginal = actualDamage                   //original damage as seen by user
                 set u = targetId_p.unit
+                
+                static if ENABLE_GUI then
+                    set damage = damage_p
+                endif
 endmodule
 module DAMAGE_EVENT_MODIFICATION_RESPONSE
                 
@@ -225,6 +241,10 @@ endmodule
 module DAMAGE_EVENT_MODIFICATION_RESPONSE_CLEANUP
                 set damageOriginal = prevDamageOriginal
                 set u = null
+                
+                static if ENABLE_GUI then
+                    set damage = damage_p
+                endif
 endmodule        
         
         private module Init
@@ -250,6 +270,49 @@ endmodule
         
             implement UnitIndexStruct
         endstruct
+        
+        module DAMAGE_EVENT_MODIFICATION_GUI_GLOBALS
+            static trigger damage
+            static trigger life
+            static trigger getLife
+        endmodule
+        module DAMAGE_EVENT_MODIFICATION_GUI
+            private static method DDS_damage takes nothing returns boolean
+                set DDS.damage = udg_DDS_damage
+                return false
+            endmethod
+            private static method DDS_life takes nothing returns boolean
+                call DisableTrigger(GUI.life)
+                set udg_DDS_life = DDS.life
+                call EnableTrigger(GUI.life)
+                return false
+            endmethod
+            private static method DDS_getLife takes nothing returns boolean
+                call DisableTrigger(GUI.getLife)
+                set udg_DDS_getLife = GetUnitLife(R2I(udg_DDS_getLife + .5))
+                call EnableTrigger(GUI.getLife)
+                return false
+            endmethod
+            private static method DDS_initVariables takes nothing returns nothing
+                set GUI.damage = CreateTrigger()
+                call TriggerRegisterVariableEvent(GUI.damage, "udg_DDS_damage", NOT_EQUAL, 0.)
+                call TriggerRegisterVariableEvent(GUI.damage, "udg_DDS_damage", EQUAL, 0.)
+                call TriggerAddCondition(GUI.damage, Condition(function thistype.DDS_damage))
+                
+                set GUI.life = CreateTrigger()
+                call TriggerRegisterVariableEvent(GUI.life, "udg_DDS_life", NOT_EQUAL, 0.)
+                call TriggerRegisterVariableEvent(GUI.life, "udg_DDS_life", EQUAL, 0.)
+                call TriggerAddCondition(GUI.life, Condition(function thistype.DDS_life))
+                
+                set GUI.getLife = CreateTrigger()
+                call TriggerRegisterVariableEvent(GUI.getLife, "udg_DDS_getLife", GREATER_THAN, 0.)
+                call TriggerAddCondition(GUI.getLife, Condition(function thistype.DDS_getLife))
+            endmethod
+            
+            private static method onInit takes nothing returns nothing
+                call DDS_initVariables()
+            endmethod
+        endmodule
     endscope
     //! endtextmacro
 endlibrary
