@@ -1,54 +1,93 @@
-library Event /* v2.0.0.1
+library Event /* v2.1.0.0
 ************************************************************************************
 *
-*   Functions
-*
-*       function CreateEvent takes nothing returns integer
-*       function TriggerRegisterEvent takes trigger t, integer ev returns nothing
+*   */ uses /*
+*   
+*       */ Trigger              /*
+*       */ Init                 /*
+*       */ TableField           /*
 *
 ************************************************************************************
 *
 *       struct Event extends array
 *
-*           static method create takes nothing returns thistype
-*           method registerTrigger takes trigger t returns nothing
-*           method register takes boolexpr c returns nothing
+*           readonly trigger trigger
+*               -   used to register events to the trigger contained in the event
+*
+*           static method create takes nothing returns Event
+*           method destroy takes nothing returns nothing
+*
+*           method refresh takes nothing returns nothing
+*               -   used to refresh events
+*
+*           method registerTrigger takes Trigger whichTrigger returns TriggerReference
+*           method register takes boolexpr whichExpression returns TriggerCondition
+*               -   user registration
+*               -   see Trigger library for details on TriggerReference and TriggerCondition
+*
+*           method registerLibraryTrigger takes Trigger whichTrigger returns TriggerReference
+*           method registerLibrary takes boolexpr whichExpression returns TriggerCondition
+*               -   library registration (runs first)
+*               -   see Trigger library for details on TriggerReference and TriggerCondition
+*
 *           method fire takes nothing returns nothing
+*               -   fire the event
 *
 ************************************************************************************/
-    globals
-        private real q=0
-    endglobals
     struct Event extends array
-        private static integer w=0
-        private static trigger array e
+        //! runtextmacro CREATE_TABLE_FIELD("private", "integer", "eventLibrary", "Trigger")
+        //! runtextmacro CREATE_TABLE_FIELD("private", "integer", "eventTrigger", "Trigger")
+        
         static method create takes nothing returns thistype
-            set w=w+1
-            set e[w]=CreateTrigger()
-            return w
+            local thistype this = Trigger.create()
+            
+            set eventLibrary = Trigger.create()
+            set eventTrigger = Trigger.create()
+            
+            call eventTrigger.reference(this)
+            call Trigger(this).reference(eventLibrary)
+            
+            return this
         endmethod
-        method registerTrigger takes trigger t returns nothing
-            call TriggerRegisterVariableEvent(t,SCOPE_PRIVATE+"q",EQUAL,this)
+        method destroy takes nothing returns nothing
+            call eventLibrary.destroy()
+            call eventTrigger.destroy()
+            call Trigger(this).destroy()
         endmethod
-        method register takes boolexpr c returns nothing
-            call TriggerAddCondition(e[this],c)
+        
+        method operator trigger takes nothing returns trigger
+            return Trigger(this).trigger
         endmethod
+        
+        method refresh takes nothing returns nothing
+            call eventTrigger.destroy()
+            set eventTrigger = Trigger.create()
+            call eventTrigger.reference(this)
+        endmethod
+        
+        method registerTrigger takes Trigger whichTrigger returns TriggerReference
+            return Trigger(this).reference(whichTrigger)
+        endmethod
+        method register takes boolexpr whichExpression returns TriggerCondition
+            return Trigger(this).register(whichExpression)
+        endmethod
+        
+        method registerLibraryTrigger takes Trigger whichTrigger returns TriggerReference
+            return eventLibrary.reference(whichTrigger)
+        endmethod
+        method registerLibrary takes boolexpr whichExpression returns TriggerCondition
+            return eventLibrary.register(whichExpression)
+        endmethod
+        
         method fire takes nothing returns nothing
-            set q=0
-            set q=this
-            call TriggerEvaluate(e[this])
+            call Trigger(this).fire()
         endmethod
+        
+        private static method init takes nothing returns nothing
+            //! runtextmacro INITIALIZE_TABLE_FIELD("eventLibrary")
+            //! runtextmacro INITIALIZE_TABLE_FIELD("eventTrigger")
+        endmethod
+        
+        implement Init
     endstruct
-    function CreateEvent takes nothing returns Event
-        return Event.create()
-    endfunction
-    function TriggerRegisterEvent takes trigger t,Event ev returns nothing
-        call ev.registerTrigger(t)
-    endfunction
-    function RegisterEvent takes boolexpr c,Event ev returns nothing
-        call ev.register(c)
-    endfunction
-    function FireEvent takes Event ev returns nothing
-        call ev.fire()
-    endfunction
 endlibrary
