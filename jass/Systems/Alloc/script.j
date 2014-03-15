@@ -1,4 +1,4 @@
-library Alloc /* v1.1.0.1
+library Alloc /* v1.1.1.0
 *************************************************************************************
 *
 *   */uses/*
@@ -12,12 +12,18 @@ library Alloc /* v1.1.0.1
 *       static method allocate takes nothing returns thistype
 *       method deallocate takes nothing returns nothing
 *
+*       debug boolean isAllocated
+*
 *       debug static method calculateMemoryUsage takes nothing returns integer
 *       debug static method getAllocatedMemoryAsString takes nothing returns string
 *
 ************************************************************************************/
     module Alloc
         private static integer array recycler
+        
+        debug method operator isAllocated takes nothing returns boolean
+            return recycler[this] == -1
+        endmethod
         
         static method allocate takes nothing returns thistype
             local thistype this = recycler[0]

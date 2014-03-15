@@ -1,11 +1,12 @@
-library Trigger /* v1.0.3.1
+library Trigger /* v1.0.3.2
 ************************************************************************************
 *
 *   */ uses /*
 *   
-*       */ ErrorMessage         /*          hiveworkshop.com/forums/submissions-414/snippet-error-message-239210/
-*       */ BooleanExpression    /*          hiveworkshop.com/forums/jass-resources-412/snippet-booleanexpression-240411/
-*       */ NxList               /*          hiveworkshop.com/forums/jass-resources-412/snippet-linked-list-node-233937/
+*       */ ErrorMessage         /*
+*       */ BooleanExpression    /*
+*       */ NxListT              /*
+*       */ Init                 /*
 *
 ************************************************************************************
 *
@@ -71,15 +72,14 @@ library Trigger /* v1.0.3.1
 *
 ************************************************************************************/
     private struct TriggerMemory extends array
-        trigger trig
-        triggercondition tc
-    
-        BooleanExpression expression                //the trigger's expression
+        //! runtextmacro CREATE_TABLE_FIELD("public", "trigger", "trig", "trigger")
+        //! runtextmacro CREATE_TABLE_FIELD("public", "triggercondition", "tc", "triggercondition")
         
-        BooleanExpression triggerExpression         //the trigger's complete expression (refs)
-        BooleanExpression triggerExpressionNode     //the trigger's registration to complete expression
+        //! runtextmacro CREATE_TABLE_FIELD("public", "integer", "expression", "BooleanExpression")                 //the trigger's expression
+        //! runtextmacro CREATE_TABLE_FIELD("public", "integer", "triggerExpression", "BooleanExpression")          //the trigger's complete expression (refs)
+        //! runtextmacro CREATE_TABLE_FIELD("public", "integer", "triggerExpressionNode", "BooleanExpression")      //the trigger's registration to complete expression
         
-        boolean enabled
+        //! runtextmacro CREATE_TABLE_FIELD("public", "boolean", "enabled", "boolean")
         
         method updateTrigger takes nothing returns nothing
             if (tc != null) then
@@ -92,30 +92,51 @@ library Trigger /* v1.0.3.1
                 set tc = null
             endif
         endmethod
+        
+        private static method init takes nothing returns nothing
+            //! runtextmacro INITIALIZE_TABLE_FIELD("trig")
+            //! runtextmacro INITIALIZE_TABLE_FIELD("tc")
+            
+            //! runtextmacro INITIALIZE_TABLE_FIELD("expression")
+            //! runtextmacro INITIALIZE_TABLE_FIELD("triggerExpression")
+            //! runtextmacro INITIALIZE_TABLE_FIELD("triggerExpressionNode")
+            
+            //! runtextmacro INITIALIZE_TABLE_FIELD("enabled")
+        endmethod
+        
+        implement Init
     endstruct
 
     private struct TriggerAllocator extends array
-        implement Alloc
+        implement AllocT
     endstruct
     
     private keyword TriggerReferencedList
     
     private struct TriggerReferenceListData extends array
-        TriggerMemory trig              //the referenced trigger
-        TriggerReferencedList ref       //the TriggerReferencedList data for that trigger (relationship in 2 places)
-        BooleanExpression expr
+        //! runtextmacro CREATE_TABLE_FIELD("public", "integer", "trig", "TriggerMemory")           //the referenced trigger
+        //! runtextmacro CREATE_TABLE_FIELD("public", "integer", "ref", "TriggerReferencedList")    //the TriggerReferencedList data for that trigger (relationship in 2 places)
+        //! runtextmacro CREATE_TABLE_FIELD("public", "integer", "expr", "BooleanExpression")
     
-        implement NxList
+        implement NxListT
+        
+        private static method init takes nothing returns nothing
+            //! runtextmacro INITIALIZE_TABLE_FIELD("trig")
+            //! runtextmacro INITIALIZE_TABLE_FIELD("ref")
+            //! runtextmacro INITIALIZE_TABLE_FIELD("expr")
+        endmethod
+        
+        implement Init
     endstruct
 
     /*
     *   List of triggers referencing current trigger
     */
     private struct TriggerReferencedList extends array
-        TriggerMemory trig              //the trigger referencing this trigger
-        TriggerReferenceListData ref    //the ref
+        //! runtextmacro CREATE_TABLE_FIELD("public", "integer", "trig", "TriggerMemory")               //the trigger referencing this trigger
+        //! runtextmacro CREATE_TABLE_FIELD("public", "integer", "ref", "TriggerReferenceListData")     //the ref 
     
-        implement NxList
+        implement NxListT
         
         method updateExpression takes nothing returns nothing
             local thistype node
@@ -191,6 +212,13 @@ library Trigger /* v1.0.3.1
             
             call clear()
         endmethod
+        
+        private static method init takes nothing returns nothing
+            //! runtextmacro INITIALIZE_TABLE_FIELD("trig")
+            //! runtextmacro INITIALIZE_TABLE_FIELD("ref")
+        endmethod
+        
+        implement Init
     endstruct
     
     /*
@@ -318,7 +346,9 @@ library Trigger /* v1.0.3.1
     endstruct
     
     private struct TriggerReferenceData extends array
-        debug private boolean isTriggerReference
+        static if DEBUG_MODE then
+            //! runtextmacro CREATE_TABLE_FIELD("private", "boolean", "isTriggerReference", "boolean")
+        endif
         
         static method create takes TriggerReferenceList origin, TriggerMemory ref returns thistype
             local thistype this = origin.add(ref)
@@ -343,11 +373,22 @@ library Trigger /* v1.0.3.1
             
             call TriggerReferenceList(this).replace(trig)
         endmethod
+        
+        private static method init takes nothing returns nothing
+            static if DEBUG_MODE then
+                //! runtextmacro INITIALIZE_TABLE_FIELD("isTriggerReference")
+            endif
+        endmethod
+        
+        implement Init
     endstruct
     
     private struct TriggerConditionData extends array
-        debug private boolean isCondition
-        private TriggerMemory trig
+        static if DEBUG_MODE then
+            //! runtextmacro CREATE_TABLE_FIELD("private", "boolean", "isCondition", "boolean")
+        endif
+        
+        //! runtextmacro CREATE_TABLE_FIELD("private", "integer", "trig", "TriggerMemory")
         
         private static method updateTrigger takes TriggerMemory trig returns nothing
             if (trig.enabled) then
@@ -393,6 +434,16 @@ library Trigger /* v1.0.3.1
             
             call updateTrigger(trig)
         endmethod
+        
+        private static method init takes nothing returns nothing
+            static if DEBUG_MODE then
+                //! runtextmacro INITIALIZE_TABLE_FIELD("isCondition")
+            endif
+            
+            //! runtextmacro INITIALIZE_TABLE_FIELD("trig")
+        endmethod
+        
+        implement Init
     endstruct
     
     struct TriggerReference extends array
@@ -414,7 +465,9 @@ library Trigger /* v1.0.3.1
     endstruct
     
     struct Trigger extends array
-        debug private boolean isTrigger
+        static if DEBUG_MODE then
+            //! runtextmacro CREATE_TABLE_FIELD("private", "boolean", "isTrigger", "boolean")
+        endif
     
         static method create takes nothing returns thistype
             local thistype this = TriggerAllocator.allocate()
@@ -561,5 +614,13 @@ library Trigger /* v1.0.3.1
                 return "(Trigger)[" + TriggerAllocator.getAllocatedMemoryAsString() + "], (Trigger Reference)[" + TriggerReferenceListData.getAllocatedMemoryAsString() + "], (Trigger Reference Back)[" + TriggerReferencedList.getAllocatedMemoryAsString() + "], (Boolean Expression (all))[" + BooleanExpression.getAllocatedMemoryAsString() + "]"
             endmethod
         endif
+        
+        private static method init takes nothing returns nothing
+            static if DEBUG_MODE then
+                //! runtextmacro INITIALIZE_TABLE_FIELD("isTrigger")
+            endif
+        endmethod
+        
+        implement Init
     endstruct
 endlibrary

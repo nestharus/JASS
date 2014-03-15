@@ -1,10 +1,9 @@
-library ListT /* v1.0.0.0
+library ListT /* v1.0.0.2
 ************************************************************************************
 *
 *   */uses/*
 *   
 *       */ ErrorMessage /*         hiveworkshop.com/forums/submissions-414/snippet-error-message-239210/
-*       */ Table        /*         hiveworkshop.com/forums/jass-resources-412/snippet-new-table-188084/
 *
 ************************************************************************************
 *
@@ -51,106 +50,95 @@ library ListT /* v1.0.0.0
 ************************************************************************************/
     private keyword isNode
     private keyword isCollection
-    
-    private keyword list_p
-    private keyword next_p
-    private keyword prev_p
-    private keyword first_p
-    private keyword last_p
-    
+    private keyword pp_list
+    private keyword pp_next
+    private keyword pp_prev
+    private keyword pp_first
+    private keyword pp_last
+
     module ListT
         private static thistype collectionCount = 0
         private static thistype nodeCount = 0
         
-        debug private static Table _isNode
+        debug private static Table p_isNode
         debug method operator isNode takes nothing returns boolean
-            return _isNode.boolean[this]
-        endmethod
+            debug return p_isNode.boolean[this]
+        debug endmethod
         debug method operator isNode= takes boolean value returns nothing
-            set _isNode.boolean[this] = value
-        endmethod
+            debug set p_isNode.boolean[this] = value
+        debug endmethod
         
-        debug private static Table _isCollection
+        debug private static Table p_isCollection
         debug method operator isCollection takes nothing returns boolean
-            return _isCollection.boolean[this]
-        endmethod
+            debug return p_isCollection.boolean[this]
+        debug endmethod
         debug method operator isCollection= takes boolean value returns nothing
-            set _isCollection.boolean[this] = value
-        endmethod
+            debug set p_isCollection.boolean[this] = value
+        debug endmethod
         
-        private static Table _list
+        private static Table p_list
+        method operator pp_list takes nothing returns thistype
+            return p_list[this]
+        endmethod
+        method operator pp_list= takes thistype value returns nothing
+            set p_list[this] = value
+        endmethod
         method operator list takes nothing returns thistype
-            debug call ThrowError(this == 0,    "ListT", "list", "thistype", this, "Attempted To Read Null Node.")
-            debug call ThrowError(not isNode,   "ListT", "list", "thistype", this, "Attempted To Read Invalid Node.")
-            return _list[this]
-        endmethod
-        method operator list_p takes nothing returns thistype
-            return _list[this]
-        endmethod
-        method operator list_p= takes thistype value returns nothing
-            set _list[this] = value
+            debug call ThrowError(this == 0,    "List", "list", "thistype", this, "Attempted To Read Null Node.")
+            debug call ThrowError(not isNode,   "List", "list", "thistype", this, "Attempted To Read Invalid Node.")
+            return pp_list
         endmethod
         
-        private static Table _next
+        private static Table p_next
+        method operator pp_next takes nothing returns thistype
+            return p_next[this]
+        endmethod
+        method operator pp_next= takes thistype value returns nothing
+            set p_next[this] = value
+        endmethod
         method operator next takes nothing returns thistype
-            debug call ThrowError(this == 0,    "ListT", "next", "thistype", this, "Attempted To Go Out Of Bounds.")
-            debug call ThrowError(not isNode,   "ListT", "next", "thistype", this, "Attempted To Read Invalid Node.")
-            return _next[this]
-        endmethod
-        method operator next_p takes nothing returns thistype
-            return _next[this]
-        endmethod
-        method operator next_p= takes thistype value returns nothing
-            set _next[this] = value
+            debug call ThrowError(this == 0,    "List", "next", "thistype", this, "Attempted To Go Out Of Bounds.")
+            debug call ThrowError(not isNode,   "List", "next", "thistype", this, "Attempted To Read Invalid Node.")
+            return pp_next
         endmethod
         
-        private static Table _prev
+        private static Table p_prev
+        method operator pp_prev takes nothing returns thistype
+            return p_prev[this]
+        endmethod
+        method operator pp_prev= takes thistype value returns nothing
+            set p_prev[this] = value
+        endmethod
         method operator prev takes nothing returns thistype
-            debug call ThrowError(this == 0,    "ListT", "prev", "thistype", this, "Attempted To Go Out Of Bounds.")
-            debug call ThrowError(not isNode,   "ListT", "prev", "thistype", this, "Attempted To Read Invalid Node.")
-            return _prev[this]
-        endmethod
-        method operator prev_p takes nothing returns thistype
-            return _prev[this]
-        endmethod
-        method operator prev_p= takes thistype value returns nothing
-            set _prev[this] = value
+            debug call ThrowError(this == 0,    "List", "prev", "thistype", this, "Attempted To Go Out Of Bounds.")
+            debug call ThrowError(not isNode,   "List", "prev", "thistype", this, "Attempted To Read Invalid Node.")
+            return pp_prev
         endmethod
         
-        private static Table _first
+        private static Table p_first
+        method operator pp_first takes nothing returns thistype
+            return p_first[this]
+        endmethod
+        method operator pp_first= takes thistype value returns nothing
+            set p_first[this] = value
+        endmethod
         method operator first takes nothing returns thistype
-            debug call ThrowError(this == 0,        "ListT", "first", "thistype", this, "Attempted To Read Null List.")
-            debug call ThrowError(not isCollection, "ListT", "first", "thistype", this, "Attempted To Read Invalid List.")
-            return _first[first]
-        endmethod
-        method operator first_p takes nothing returns thistype
-            return _first[this]
-        endmethod
-        method operator first_p= takes thistype value returns nothing
-            set _first[this] = value
+            debug call ThrowError(this == 0,        "List", "first", "thistype", this, "Attempted To Read Null List.")
+            debug call ThrowError(not isCollection, "List", "first", "thistype", this, "Attempted To Read Invalid List.")
+            return pp_first
         endmethod
         
-        private static Table _last
+        private static Table p_last
+        method operator pp_last takes nothing returns thistype
+            return p_last[this]
+        endmethod
+        method operator pp_last= takes thistype value returns nothing
+            set p_last[this] = value
+        endmethod
         method operator last takes nothing returns thistype
-            debug call ThrowError(this == 0,        "ListT", "last", "thistype", this, "Attempted To Read Null List.")
-            debug call ThrowError(not isCollection, "ListT", "last", "thistype", this, "Attempted To Read Invalid List.")
-            return _last[this]
-        endmethod
-        method operator last_p takes nothing returns thistype
-            return _last[this]
-        endmethod
-        method operator last_p= takes thistype value returns nothing
-            set _last[this] = value
-        endmethod
-        
-        private static method onInit takes nothing returns nothing
-            debug set _isNode = Table.create()
-            debug set _isCollection = Table.create()
-            set _list = Table.create()
-            set _next = Table.create()
-            set _prev = Table.create()
-            set _first = Table.create()
-            set _last = Table.create()
+            debug call ThrowError(this == 0,        "List", "last", "thistype", this, "Attempted To Read Null List.")
+            debug call ThrowError(not isCollection, "List", "last", "thistype", this, "Attempted To Read Invalid List.")
+            return pp_last
         endmethod
         
         static method operator sentinel takes nothing returns integer
@@ -158,26 +146,30 @@ library ListT /* v1.0.0.0
         endmethod
         
         private static method allocateCollection takes nothing returns thistype
-            local thistype this = thistype(0).first_p
+            local thistype this = thistype(0).pp_first
             
             if (0 == this) then
+                debug call ThrowError(collectionCount == 8191, "List", "allocateCollection", "thistype", 0, "Overflow.")
+                
                 set this = collectionCount + 1
                 set collectionCount = this
             else
-                set thistype(0).first_p = first_p
+                set thistype(0).pp_first = pp_first
             endif
             
             return this
         endmethod
         
         private static method allocateNode takes nothing returns thistype
-            local thistype this = thistype(0).next_p
+            local thistype this = thistype(0).pp_next
             
             if (0 == this) then
+                debug call ThrowError(nodeCount == 8191, "List", "allocateNode", "thistype", 0, "Overflow.")
+                
                 set this = nodeCount + 1
                 set nodeCount = this
             else
-                set thistype(0).next_p = next_p
+                set thistype(0).pp_next = pp_next
             endif
             
             return this
@@ -188,31 +180,31 @@ library ListT /* v1.0.0.0
             
             debug set isCollection = true
             
-            set first_p = 0
+            set pp_first = 0
             
             return this
         endmethod
         method push takes nothing returns thistype
             local thistype node = allocateNode()
             
-            debug call ThrowError(this == 0,        "ListT", "push", "thistype", this, "Attempted To Push On To Null List.")
-            debug call ThrowError(not isCollection, "ListT", "push", "thistype", this, "Attempted To Push On To Invalid List.")
+            debug call ThrowError(this == 0,        "List", "push", "thistype", this, "Attempted To Push On To Null List.")
+            debug call ThrowError(not isCollection, "List", "push", "thistype", this, "Attempted To Push On To Invalid List.")
             
             debug set node.isNode = true
             
-            set node._list = this
+            set node.pp_list = this
         
-            if (first_p == 0) then
-                set first_p = node
-                set last_p = node
-                set node.next_p = 0
+            if (pp_first == 0) then
+                set pp_first = node
+                set pp_last = node
+                set node.pp_next = 0
             else
-                set first_p.prev_p = node
-                set node.next_p = first_p
-                set first_p = node
+                set pp_first.pp_prev = node
+                set node.pp_next = pp_first
+                set pp_first = node
             endif
             
-            set node.prev_p = 0
+            set node.pp_prev = 0
             
             return node
         endmethod
@@ -224,24 +216,24 @@ library ListT /* v1.0.0.0
             
             debug set node.isNode = true
             
-            set node._list = this
+            set node.pp_list = this
         
-            if (first_p == 0) then
-                set first_p = node
-                set last_p = node
-                set node.prev_p = 0
+            if (pp_first == 0) then
+                set pp_first = node
+                set pp_last = node
+                set node.pp_prev = 0
             else
-                set last_p.next_p = node
-                set node.prev_p = last_p
-                set last_p = node
+                set pp_last.pp_next = node
+                set node.pp_prev = pp_last
+                set pp_last = node
             endif
             
-            set node.next_p = 0
+            set node.pp_next = 0
             
             return node
         endmethod
         method pop takes nothing returns nothing
-            local thistype node = first_p
+            local thistype node = pp_first
             
             debug call ThrowError(this == 0,        "List", "pop", "thistype", this, "Attempted To Pop Null List.")
             debug call ThrowError(not isCollection, "List", "pop", "thistype", this, "Attempted To Pop Invalid List.")
@@ -249,20 +241,20 @@ library ListT /* v1.0.0.0
             
             debug set node.isNode = false
             
-            set first_p._list = 0
+            set pp_first.pp_list = 0
             
-            set first_p = first_p.next_p
-            if (first_p == 0) then
-                set last_p = 0
+            set pp_first = pp_first.pp_next
+            if (pp_first == 0) then
+                set pp_last = 0
             else
-                set first_p.prev_p = 0
+                set pp_first.pp_prev = 0
             endif
             
-            set node.next_p = thistype(0).next_p
-            set thistype(0).next_p = node
+            set node.pp_next = thistype(0).pp_next
+            set thistype(0).pp_next = node
         endmethod
         method dequeue takes nothing returns nothing
-            local thistype node = last_p
+            local thistype node = pp_last
             
             debug call ThrowError(this == 0,        "List", "dequeue", "thistype", this, "Attempted To Dequeue Null List.")
             debug call ThrowError(not isCollection, "List", "dequeue", "thistype", this, "Attempted To Dequeue Invalid List.")
@@ -270,45 +262,45 @@ library ListT /* v1.0.0.0
             
             debug set node.isNode = false
             
-            set last_p._list = 0
+            set pp_last.pp_list = 0
         
-            set last_p = last_p.prev_p
-            if (last_p == 0) then
-                set first_p = 0
+            set pp_last = pp_last.pp_prev
+            if (pp_last == 0) then
+                set pp_first = 0
             else
-                set last_p.next_p = 0
+                set pp_last.pp_next = 0
             endif
             
-            set node.next_p = thistype(0).next_p
-            set thistype(0).next_p = node
+            set node.pp_next = thistype(0).pp_next
+            set thistype(0).pp_next = node
         endmethod
         method remove takes nothing returns nothing
             local thistype node = this
-            set this = node._list
+            set this = node.pp_list
             
             debug call ThrowError(node == 0,        "List", "remove", "thistype", this, "Attempted To Remove Null Node.")
             debug call ThrowError(not node.isNode,  "List", "remove", "thistype", this, "Attempted To Remove Invalid Node (" + I2S(node) + ").")
             
             debug set node.isNode = false
             
-            set node._list = 0
+            set node.pp_list = 0
         
-            if (0 == node.prev_p) then
-                set first_p = node.next_p
+            if (0 == node.pp_prev) then
+                set pp_first = node.pp_next
             else
-                set node.prev_p.next_p = node.next_p
+                set node.pp_prev.pp_next = node.pp_next
             endif
-            if (0 == node.next_p) then
-                set last_p = node.prev_p
+            if (0 == node.pp_next) then
+                set pp_last = node.pp_prev
             else
-                set node.next_p.prev_p = node.prev_p
+                set node.pp_next.pp_prev = node.pp_prev
             endif
             
-            set node.next_p = thistype(0).next_p
-            set thistype(0).next_p = node
+            set node.pp_next = thistype(0).pp_next
+            set thistype(0).pp_next = node
         endmethod
         method clear takes nothing returns nothing
-            debug local thistype node = first_p
+            debug local thistype node = pp_first
         
             debug call ThrowError(this == 0,            "List", "clear", "thistype", this, "Attempted To Clear Null List.")
             debug call ThrowError(not isCollection,     "List", "clear", "thistype", this, "Attempted To Clear Invalid List.")
@@ -317,19 +309,19 @@ library ListT /* v1.0.0.0
                 loop
                     exitwhen node == 0
                     set node.isNode = false
-                    set node = node.next_p
+                    set node = node.pp_next
                 endloop
             endif
             
-            if (first_p == 0) then
+            if (pp_first == 0) then
                 return
             endif
             
-            set last_p.next_p = thistype(0).next_p
-            set thistype(0).next_p = first_p
+            set pp_last.pp_next = thistype(0).pp_next
+            set thistype(0).pp_next = pp_first
             
-            set first_p = 0
-            set last_p = 0
+            set pp_first = 0
+            set pp_last = 0
         endmethod
         method destroy takes nothing returns nothing
             debug call ThrowError(this == 0,            "List", "destroy", "thistype", this, "Attempted To Destroy Null List.")
@@ -340,16 +332,26 @@ library ListT /* v1.0.0.0
                 
                 debug set isCollection = false
             else
-                if (first_p != 0) then
-                    set last_p.next_p = thistype(0).next_p
-                    set thistype(0).next_p = first_p
+                if (pp_first != 0) then
+                    set pp_last.pp_next = thistype(0).pp_next
+                    set thistype(0).pp_next = pp_first
                     
-                    set last_p = 0
+                    set pp_last = 0
                 endif
             endif
             
-            set first_p = thistype(0).first_p
-            set thistype(0).first_p = this
+            set pp_first = thistype(0).pp_first
+            set thistype(0).pp_first = this
+        endmethod
+        
+        private static method onInit takes nothing returns nothing
+            set p_isNode = Table.create()
+            set p_isCollection = Table.create()
+            set p_list = Table.create()
+            set p_next = Table.create()
+            set p_prev = Table.create()
+            set p_first = Table.create()
+            set p_last = Table.create()
         endmethod
         
         static if DEBUG_MODE then

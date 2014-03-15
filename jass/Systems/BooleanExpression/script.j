@@ -1,12 +1,15 @@
-library BooleanExpression /* v1.0.0.13
+library BooleanExpression /* v1.0.0.14
 ************************************************************************************
 *
 *   */ uses /*
 *   
-*       */ ErrorMessage         /*          hiveworkshop.com/forums/submissions-414/snippet-error-message-239210/
-*       */ List                 /*          hiveworkshop.com/forums/submissions-414/snippet-list-239400/
-*       */ NxStack              /*          hiveworkshop.com/forums/submissions-414/snippet-nxstack-239368/
-*       */ Alloc                /*          hiveworkshop.com/forums/jass-resources-412/snippet-alloc-alternative-221493/
+*       */ ErrorMessage         /*
+*       */ ListT                /*
+*       */ NxStackT             /*
+*       */ AllocT               /*
+*       */ Table                /*
+*       */ Init                 /*
+*       */ TableField           /*
 *
 ************************************************************************************
 *
@@ -66,29 +69,27 @@ library BooleanExpression /* v1.0.0.13
             /*
             *   Tree Fields
             */
-            thistype root
-            
-            thistype left
-            thistype right
+            //! runtextmacro CREATE_TABLE_FIELD("public", "integer", "root", "thistype")
+            //! runtextmacro CREATE_TABLE_FIELD("public", "integer", "left", "thistype")
+            //! runtextmacro CREATE_TABLE_FIELD("public", "integer", "right", "thistype")
             
             /*
             *   List Fields
             */
-            thistype next
-            thistype prev
+            //! runtextmacro CREATE_TABLE_FIELD("public", "integer", "next", "thistype")
+            //! runtextmacro CREATE_TABLE_FIELD("public", "integer", "prev", "thistype")
             
             /*
             *   Standard Fields
             */
-            boolexpr expression
-            
-            boolean canDestroy
+            //! runtextmacro CREATE_TABLE_FIELD("public", "boolexpr", "expression", "boolexpr")
+            //! runtextmacro CREATE_TABLE_FIELD("public", "boolean", "canDestroy", "boolean")
             
             /*
             *       static method allocate takes nothing returns thistype
             *       method deallocate takes nothing returns nothing
             */
-            implement Alloc
+            implement AllocT
             
             static method create takes nothing returns thistype
                 return allocate()
@@ -347,6 +348,18 @@ library BooleanExpression /* v1.0.0.13
                     endif
                 endloop
             endmethod
+            
+            private static method init takes nothing returns nothing
+                //! runtextmacro INITIALIZE_TABLE_FIELD("root")
+                //! runtextmacro INITIALIZE_TABLE_FIELD("left")
+                //! runtextmacro INITIALIZE_TABLE_FIELD("right")
+                //! runtextmacro INITIALIZE_TABLE_FIELD("next")
+                //! runtextmacro INITIALIZE_TABLE_FIELD("prev")
+                //! runtextmacro INITIALIZE_TABLE_FIELD("expression")
+                //! runtextmacro INITIALIZE_TABLE_FIELD("canDestroy")
+            endmethod
+            
+            implement Init
         endstruct
         
         struct NodeExpression extends array
@@ -420,12 +433,20 @@ library BooleanExpression /* v1.0.0.13
         endstruct
         
         scope ListExpressionScope
+            private keyword List_P
+            //! runtextmacro CREATE_TABLE_FIELD_ARRAY("integer", "expressionOwner", "List_P") takes TYPE, NAME, RETURN_TYPE
+            
             private struct List_P extends array
-                NodeExpression expression
+                //! runtextmacro CREATE_TABLE_FIELD("public", "integer", "expression", "NodeExpression")
+                //! runtextmacro USE_TABLE_FIELD_ARRAY("public", "expressionOwner")
                 
-                static thistype array expressionOwner
+                implement ListT
                 
-                implement List
+                private static method init takes nothing returns nothing
+                    //! runtextmacro INITIALIZE_TABLE_FIELD("expression")
+                endmethod
+                
+                implement Init
             endstruct
             
             struct ListExpression extends array
@@ -606,11 +627,12 @@ library BooleanExpression /* v1.0.0.13
         endscope
     endscope
     
+    //! runtextmacro CREATE_TABLE_FIELD_ARRAY("boolexpr", "buffer", "boolexpr")
     private struct BooleanExpressionContainer extends array
-        implement NxStack
+        implement NxStackT
         
-        boolexpr expression
-        boolexpr top
+        //! runtextmacro CREATE_TABLE_FIELD("private", "boolexpr", "expression", "boolexpr")
+        //! runtextmacro CREATE_TABLE_FIELD("public", "boolexpr", "top", "boolexpr")
         
         /*
         *   This is one ugly algorithm
@@ -621,7 +643,7 @@ library BooleanExpression /* v1.0.0.13
         *   Remove the resulting empty holes
         *   Keep repeating until array only has 1 filled slot
         */
-        private static boolexpr array buffer
+        //! runtextmacro USE_TABLE_FIELD_ARRAY("private", "buffer")
         method build takes nothing returns nothing
             local ListExpression node = ListExpression(this).last
             
@@ -738,12 +760,21 @@ library BooleanExpression /* v1.0.0.13
             
             call stack.clear()
         endmethod
+        
+        private static method init takes nothing returns nothing
+            //! runtextmacro INITIALIZE_TABLE_FIELD("expression")
+            //! runtextmacro INITIALIZE_TABLE_FIELD("top")
+        endmethod
+        
+        implement Init
     endstruct
     
     struct BooleanExpression extends array
-        private boolean modified
+        //! runtextmacro CREATE_TABLE_FIELD("private", "boolean", "modified", "boolean")
         
-        debug private boolean isAllocated
+        static if DEBUG_MODE then
+            //! runtextmacro CREATE_TABLE_FIELD("private", "boolean", "isAllocated", "boolean")
+        endif
         
         /*
         *   Only rebuild the expression when it is needed, otherwise leave it alone
@@ -815,5 +846,15 @@ library BooleanExpression /* v1.0.0.13
                 return "(Node Expression)[" + NodeExpression.getAllocatedMemoryAsString() + "], (List Expression)[" + ListExpression.getAllocatedMemoryAsString() + "], (Boolean Expression Container)[" + BooleanExpressionContainer.getAllocatedMemoryAsString() + "]"
             endmethod
         endif
+        
+        private static method init takes nothing returns nothing
+            //! runtextmacro INITIALIZE_TABLE_FIELD("modified")
+            
+            static if DEBUG_MODE then
+                //! runtextmacro INITIALIZE_TABLE_FIELD("isAllocated")
+            endif
+        endmethod
+        
+        implement Init
     endstruct
 endlibrary

@@ -1,10 +1,10 @@
-library AllocT /* v1.0.0.0
+library AllocT /* v1.0.1.0
 *************************************************************************************
 *
 *   */uses/*
 *   
-*       */ ErrorMessage /*         hiveworkshop.com/forums/submissions-414/snippet-error-message-239210/
-*       */ Table        /*         hiveworkshop.com/forums/jass-resources-412/snippet-new-table-188084/
+*       */ ErrorMessage /*
+*       */ Table        /*
 *
 ************************************************************************************
 *
@@ -12,6 +12,8 @@ library AllocT /* v1.0.0.0
 *
 *       static method allocate takes nothing returns thistype
 *       method deallocate takes nothing returns nothing
+*
+*       debug boolean isAllocated
 *
 *       debug static method calculateMemoryUsage takes nothing returns integer
 *       debug static method getAllocatedMemoryAsString takes nothing returns string
@@ -21,8 +23,8 @@ library AllocT /* v1.0.0.0
         private static Table recycler
         private static integer instanceCount = 0
         
-        private static method onInit takes nothing returns nothing
-            set recycler = Table.create()
+        debug method operator isAllocated takes nothing returns boolean
+            return recycler[this] == -1
         endmethod
         
         static method allocate takes nothing returns thistype
@@ -41,22 +43,26 @@ library AllocT /* v1.0.0.0
         endmethod
         
         method deallocate takes nothing returns nothing
-            debug call ThrowError(recycler[this] != -1, "Alloc", "deallocate", "thistype", this, "Attempted To Deallocate Null Instance.")
+            debug call ThrowError(recycler[this] != -1, "AllocT", "deallocate", "thistype", this, "Attempted To Deallocate Null Instance.")
             
             set recycler[this] = recycler[0]
             set recycler[0] = this
         endmethod
         
+        private static method onInit takes nothing returns nothing
+            set recycler = Table.create()
+        endmethod
+        
         static if DEBUG_MODE then
             static method calculateMemoryUsage takes nothing returns integer
                 local integer start = 1
-                local integer end = instanceCount
+                local integer end = 8191
                 local integer count = 0
                 
                 loop
                     exitwhen start > end
                     if (start + 500 > end) then
-                        set count = checkRegion(start, end)
+                        set count = count + checkRegion(start, end)
                         set start = end + 1
                     else
                         set count = checkRegion(start, start + 500)
@@ -83,7 +89,7 @@ library AllocT /* v1.0.0.0
             
             static method getAllocatedMemoryAsString takes nothing returns string
                 local integer start = 1
-                local integer end = instanceCount
+                local integer end = 8191
                 local string memory = null
                 
                 loop
