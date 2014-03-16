@@ -106,9 +106,10 @@ struct tests extends array
         loop
             set itemTypeId = looper.next
             exitwhen 0 == itemTypeId
-            call DisplayTimedTextToPlayer(GetLocalPlayer(),0,0,60,I2S(ver)+": "+GetObjectName(itemTypeId))
+            call DisplayTimedTextToPlayer(GetLocalPlayer(),0,0,60000,I2S(ver)+": "+GetObjectName(itemTypeId) + "(" + I2S(catalog.id(itemTypeId)) + ")")
         endloop
     endmethod
+    
     private static method init takes nothing returns nothing
         call DestroyTimer(GetExpiredTimer())
         

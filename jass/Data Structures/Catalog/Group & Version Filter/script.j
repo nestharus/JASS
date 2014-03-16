@@ -121,6 +121,7 @@ library GroupVersionCatalog uses TempCatalog
             
             set catalog = TempCatalog.create()
             set groupFilter = getGroupFilter(groupId)
+            call catalog.addCatalog(catalogTable[groupFilter])
             set looper = CatalogLoop.create(groupFilter, 1)
             loop
                 set groupFilter = looper.next

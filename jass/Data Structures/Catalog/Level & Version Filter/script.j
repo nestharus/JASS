@@ -93,7 +93,7 @@ library_once LevelFilter uses IntTree, Table, Catalog, TempCatalog
             set levelCatalog = tree.search(level)
             
             if (0 == levelCatalog) then
-                set level = tree.add(level)
+                set level = tree.addUnique(level)
                 
                 set levelCatalog = Catalog.create()
                 set catalogTable[level] = levelCatalog

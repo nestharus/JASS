@@ -1,4 +1,4 @@
-library Catalog /* v1.2.1.0
+library Catalog /* v1.2.1.1
 *************************************************************************************
 *
 *   A system used to generate catalogs of objects by hashing raw code ids into indexed
@@ -552,7 +552,7 @@ library Catalog /* v1.2.1.0
             call CatalogAddCatalog(thistype.catalog, catalog)
         endmethod
         static method operator firstCatalog takes nothing returns thistype
-            return GetFirstAddedCatalog(thistype.catalog, thistype.catalog)
+            return GetFirstAddedCatalog(thistype.catalog)
         endmethod
         method operator getNextCatalog takes nothing returns thistype
             return GetNextAddedCatalog(thistype.catalog, this)

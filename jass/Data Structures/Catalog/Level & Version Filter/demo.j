@@ -113,7 +113,7 @@ struct tests extends array
         loop
             set itemTypeId = looper.next
             exitwhen 0 == itemTypeId
-            call DisplayTimedTextToPlayer(GetLocalPlayer(),0,0,60,GetObjectName(itemTypeId)+" at level "+I2S(ItemCatalog.getLevel(itemTypeId))+" for levels ["+I2S(minLevel)+","+I2S(maxLevel)+"]")
+            call DisplayTimedTextToPlayer(GetLocalPlayer(),0,0,60000,GetObjectName(itemTypeId)+" at level "+I2S(ItemCatalog.getLevel(itemTypeId))+" for levels ["+I2S(minLevel)+","+I2S(maxLevel)+"]")
         endloop
     endmethod
     private static method init takes nothing returns nothing

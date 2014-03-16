@@ -113,7 +113,7 @@ library_once LevelFilter uses IntTree, Table, Catalog, TempCatalog
             set levelCatalog = tree.search(level)
             
             if (0 == levelCatalog) then
-                set level = tree.add(level)
+                set level = tree.addUnique(level)
                 
                 set levelCatalog = Catalog.create()
                 set catalogTable[level] = levelCatalog
@@ -210,6 +210,7 @@ library LevelGroupSlotVersionCatalog uses LevelFilter, TempCatalog, SlotFilter
             
             set catalog = TempCatalog.create()
             set groupFilter = getGroupFilter(groupId)
+            call catalog.addCatalog(LevelFilter(levelFilter[groupFilter]).get(minLevel, maxLevel))
             set looper = CatalogLoop.create(groupFilter, 1)
             loop
                 set groupFilter = looper.next

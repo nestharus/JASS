@@ -24,7 +24,7 @@ struct ItemCatalog extends array
         set thistype.itemLevel[itemTypeId] = level
     endmethod
     
-    private static method onInit takes nothing returns nothing
+    private static method init takes nothing returns nothing
         local integer cver
         
         call DestroyTimer(GetExpiredTimer())
@@ -131,35 +131,62 @@ struct ItemCatalog extends array
             *************************************************************************************************/
             call add('bspd',    cver,       2,          1,        6,      0,              false)
     endmethod
+    
+    private static method onInit takes nothing returns nothing
+        call TimerStart(CreateTimer(), 0, false, function thistype.init)
+    endmethod
 endstruct
 
 struct tests extends array
-    private static method print takes integer ver, integer groupId, integer slotId, integer minLevel, integer maxLevel returns nothing
+    private static method print takes integer ver, integer groupId, integer slot, integer minLevel, integer maxLevel returns nothing
         local Catalog catalog
         local CatalogLoop looper
         local integer itemTypeId
         
-        set catalog = ItemCatalog.get(ver, groupId, slotId, minLevel, maxLevel)
+        local string out
+        
+        set catalog = ItemCatalog.get(ver, groupId, slot, minLevel, maxLevel)
         
         set looper = CatalogLoop.create(catalog,1)
         loop
             set itemTypeId = looper.next
             exitwhen 0 == itemTypeId
-            call DisplayTimedTextToPlayer(GetLocalPlayer(),0,0,60,"Version "+I2S(ver)+": "+GetObjectName(groupId)+" has "+GetObjectName(itemTypeId)+" at level "+I2S(ItemCatalog.getLevel(itemTypeId))+" for levels ["+I2S(minLevel)+","+I2S(maxLevel)+"]"+" in slot "+I2S(slotId))
+            
+            set out = "Version " + I2S(ver) + ": "
+            set out = out + GetObjectName(groupId) + " has "
+            set out = out + GetObjectName(itemTypeId) + "(" + I2S(catalog.id(itemTypeId)) + ")"
+            set out = out + " at level " + I2S(ItemCatalog.getLevel(itemTypeId))
+            set out = out + " in slot " + I2S(slot)
+            set out = out + " for levels [" + I2S(minLevel)+","+I2S(maxLevel) + "]"
+            call DisplayTimedTextToPlayer(GetLocalPlayer(),0,0,60000, out)
         endloop
     endmethod
+    
     private static method init takes nothing returns nothing
         call DestroyTimer(GetExpiredTimer())
         
-        call print(1, 'Hpal', 1, 1, 10)
-        call print(2, 'Hmkg', 1, 1, 10)
-        call print(3, 'Hamg', 1, 1, 10)
-        call print(4, 'Hblm', 1, 1, 10)
-        call print(5, 'Obla', 1, 1, 10)
-        call print(6, 'Ofar', 1, 1, 10)
+        //slots are just hash, so they don't require testing
+        /*
+        *   Hpal
+        *   Hmkg
+        *   Hamg
+        *   Hbml
+        *   Obla
+        *   Ofar
+        *   1
+        *   2
+        */
+        call print(1, 'Hpal', 1, 1, 10)     //check version
+        call print(2, 'Hpal', 1, 1, 10)     //check version
+        call print(3, 'Hpal', 1, 1, 10)     //check version
+        call print(4, 'Hpal', 1, 1, 10)     //check version, rest are like version 4
+        call print(1, 'Hmkg', 1, 1, 10)        //check version
+        call print(3, 'Hmkg', 1, 1, 10)        //check version
+        call print(4, 'Hmkg', 1, 1, 10)        //check version, other heroes are ok
+        call print(1, 1, 1, 1, 10)          //check group with items
     endmethod
     
     private static method onInit takes nothing returns nothing
-        call TimerStart(CreateTimer(), 0, false, function thistype.init)
+        call TimerStart(CreateTimer(), .1, false, function thistype.init)
     endmethod
 endstruct
