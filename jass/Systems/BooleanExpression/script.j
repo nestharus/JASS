@@ -1,4 +1,4 @@
-library BooleanExpression /* v1.0.0.14
+library BooleanExpression /* v1.0.0.15
 ************************************************************************************
 *
 *   */ uses /*
@@ -124,7 +124,7 @@ library BooleanExpression /* v1.0.0.14
                     set right = 0
                 endif
                 
-                set expression = null
+				call expression_clear()
                 
                 call deallocate()
             endmethod
@@ -142,7 +142,11 @@ library BooleanExpression /* v1.0.0.14
                 set right.root = this
                 
                 if (right.expression == null) then
-                    set expression = left.expression
+					if (left.expression == null) then
+						call expression_clear()
+					else
+						set expression = left.expression
+					endif
                 elseif (left.expression == null) then
                     set expression = right.expression
                 else
@@ -185,7 +189,8 @@ library BooleanExpression /* v1.0.0.14
                     set canDestroy = false
                     call DestroyBoolExpr(expression)
                 endif
-                set expression = null
+				
+				call expression_clear()
                 
                 set right.root = 0
                 set left.root = 0
@@ -247,7 +252,11 @@ library BooleanExpression /* v1.0.0.14
                             endif
                             
                             if (replacer.right.expression == null) then
-                                set replacer.expression = replacer.left.expression
+								if (replacer.left.expression == null) then
+									call replacer.expression_clear()
+								else
+									set replacer.expression = replacer.left.expression
+								endif
                             elseif (replacer.left.expression == null) then
                                 set replacer.expression = replacer.right.expression
                             else
@@ -318,7 +327,7 @@ library BooleanExpression /* v1.0.0.14
                 /*
                 *   Destroy removed node
                 */
-                set expression = null
+				call expression_clear()
                 
                 call deallocate()
                 
@@ -329,7 +338,11 @@ library BooleanExpression /* v1.0.0.14
             endmethod
             
             method replace takes boolexpr expression returns nothing
-                set this.expression = expression
+				if (expression == null) then
+					call this.expression_clear()
+				else
+					set this.expression = expression
+				endif
                 loop
                     exitwhen root == 0
                     set this = root
@@ -339,7 +352,11 @@ library BooleanExpression /* v1.0.0.14
                         call DestroyBoolExpr(this.expression)
                     endif
                     if (right.expression == null) then
-                        set this.expression = left.expression
+						if (left.expression == null) then
+							call this.expression_clear()
+						else
+							set this.expression = left.expression
+						endif
                     elseif (left.expression == null) then
                         set this.expression = right.expression
                     else
@@ -387,7 +404,7 @@ library BooleanExpression /* v1.0.0.14
             
             static method create takes boolexpr expression returns thistype
                 local Node node = Node.create()
-                set node.expression = expression
+				set node.expression = expression
                 return node
             endmethod
             method destroy takes nothing returns nothing
@@ -531,7 +548,6 @@ library BooleanExpression /* v1.0.0.14
                     */
                     if (node.expression == 0) then
                         set node.expression = nodeExpression
-                        
                         set List_P.expressionOwner[nodeExpression] = node
                     /*
                     *   If it does have an expression, join expressions
@@ -575,7 +591,7 @@ library BooleanExpression /* v1.0.0.14
                     local List_P owner = listNode.list
                     
                     local boolean isOdd = listNode.list.first.expression != 0       //no need to decompose when odd
-                    
+					
                     set node = node.remove()
                     
                     if (isOdd) then
@@ -595,14 +611,14 @@ library BooleanExpression /* v1.0.0.14
                             set node = node.splitLeft()
                             set listNode = listNode.prev
                             set listNode.expression = node
-                            set List_P.expressionOwner[node] = listNode
+							set List_P.expressionOwner[node] = listNode
                             set node = tree
                         endloop
                         
                         if (node != 0) then
                             set listNode = listNode.prev
                             set listNode.next.expression = node
-                            set List_P.expressionOwner[node] = listNode
+							set List_P.expressionOwner[node] = listNode
                         endif
                     endif
                     
@@ -611,7 +627,7 @@ library BooleanExpression /* v1.0.0.14
                 
                 method replace takes boolexpr expression returns thistype
                     call NodeExpression(this).replace(expression)
-                    return List_P.expressionOwner[NodeExpression(this).top].list
+					return List_P.expressionOwner[NodeExpression(this).top].list
                 endmethod
                 
                 static if DEBUG_MODE then
@@ -717,32 +733,33 @@ library BooleanExpression /* v1.0.0.14
                 loop
                     exitwhen positionStart == positionEnd
                     set buffer[targetStart] = buffer[positionStart]
-                    set buffer[positionStart] = null
                     set positionStart = positionStart + 1
                     exitwhen positionStart == positionEnd
                     
                     set positionEnd = positionEnd - 1
                     set buffer[targetStart] = Or(buffer[targetStart], buffer[positionEnd])
                     set push().expression = buffer[targetEnd]
-                    set buffer[positionEnd] = null
                     set targetStart = targetStart + 1
                     exitwhen targetStart == targetEnd
                     
                     set targetEnd = targetEnd - 1
                     set buffer[targetEnd] = buffer[positionStart]
-                    set buffer[positionStart] = null
                     set positionStart = positionStart + 1
                     exitwhen positionStart == positionEnd
                     
                     set positionEnd = positionEnd - 1
                     set buffer[targetEnd] = Or(buffer[targetEnd], buffer[positionEnd])
                     set push().expression = buffer[targetEnd]
-                    set buffer[positionEnd] = null
                 endloop
             endloop
             
-            set top = buffer[segment + length - 1]
-            set buffer[segment + length - 1] = null
+			if (buffer[segment + length - 1] == null) then
+				call top_clear()
+			else
+				set top = buffer[segment + length - 1]
+			endif
+			
+			call buffer.clear()
         endmethod
         
         method destruct takes nothing returns nothing
@@ -754,7 +771,7 @@ library BooleanExpression /* v1.0.0.14
             loop
                 exitwhen this == 0
                 call DestroyBoolExpr(expression)
-                set expression = null
+				call expression_clear()
                 set this = next
             endloop
             

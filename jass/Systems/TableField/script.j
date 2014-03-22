@@ -8,6 +8,9 @@ library TableField uses Table, Init
         $ACCESS_MODIFIER$ method operator $NAME$= takes $RETURN_TYPE$ value returns nothing
             set t$NAME$.$TYPE$[this] = value
         endmethod
+        $ACCESS_MODIFIER$ method $NAME$_clear takes nothing returns nothing
+            call t$NAME$.$TYPE$.remove(this)
+        endmethod
     //! endtextmacro
     
     //! textmacro CREATE_TABLE_FIELD_ARRAY takes TYPE, NAME, RETURN_TYPE
@@ -19,6 +22,12 @@ library TableField uses Table, Init
             endmethod
             method operator []= takes integer index, $RETURN_TYPE$ value returns nothing
                 set table.$TYPE$[index] = value
+            endmethod
+            static method remove takes integer index returns nothing
+                call table.$TYPE$.remove(index)
+            endmethod
+			static method clear takes nothing returns nothing
+                call table.flush()
             endmethod
             
             private static method init takes nothing returns nothing
