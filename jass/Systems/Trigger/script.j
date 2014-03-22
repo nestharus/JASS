@@ -1,4 +1,4 @@
-library Trigger /* v1.0.3.2
+library Trigger /* v1.0.3.3
 ************************************************************************************
 *
 *   */ uses /*
@@ -89,7 +89,7 @@ library Trigger /* v1.0.3.2
             if (enabled and triggerExpression.expression != null) then
                 set tc = TriggerAddCondition(trig, triggerExpression.expression)
             else
-                set tc = null
+				call tc_clear()
             endif
         endmethod
         
@@ -498,9 +498,9 @@ library Trigger /* v1.0.3.2
             if (TriggerMemory(this).tc != null) then
                 call TriggerRemoveCondition(TriggerMemory(this).trig, TriggerMemory(this).tc)
             endif
-            set TriggerMemory(this).tc = null
+			call TriggerMemory(this).tc_clear()
             call DestroyTrigger(TriggerMemory(this).trig)
-            set TriggerMemory(this).trig = null
+			call TriggerMemory(this).trig_clear()
             
             call TriggerMemory(this).expression.destroy()
             call TriggerMemory(this).triggerExpression.destroy()
@@ -569,7 +569,7 @@ library Trigger /* v1.0.3.2
             if (TriggerMemory(this).enabled) then
                 set TriggerMemory(this).tc = TriggerAddCondition(TriggerMemory(this).trig, TriggerMemory(this).triggerExpression.expression)
             else
-                set TriggerMemory(this).tc = null
+				call TriggerMemory(this).tc_clear()
             endif
         endmethod
         
