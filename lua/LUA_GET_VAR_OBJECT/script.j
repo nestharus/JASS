@@ -1,27 +1,60 @@
-//GetVarObject 3.0.0.5
-//function getvarobject(base, objtype, varname, import)
-    //base: base id of object
-        //"hpea", "Amov", "Bphx", etc
-        
-    //objtype: type of object
-        //"units", "abilities", "items", etc
-        
-    //varname: name assigned to variable
-        //OBJECTTYPE_NAME
-        //"UNITS_MY_UNIT", "ABILITIES_RAIN_OF_CHAOS", etc
-        
-    //import: should the variable be imported into the map as a global?
-        //true, false, nil
-        
-//function getvarobjectname(value)
-    //retrieve name given value ("hpea", etc)
-    
-//function getvarobjectvalue(objectname)
-    //retrieve value given name ("UNITS_MY_UNIT", etc)
-    
-//function updateobjects()
-    //call at end of script
-        
+/*
+*	function getvarobject(base, objtype, varname, import)
+*
+*		creates a new object and puts it into the map
+*		it also creates a new JASS variable and binds it to that
+*		object
+*
+*		base (string)
+*
+*			-	refers to the base id of the object
+*
+*			Examples:	"hpea" "Amoy" "Bphx"
+*
+*		objtype (string)
+*
+*			-	refers to the type of object
+*
+*			Examples:	"units" "abilities" "items"
+*
+*		varname (string)
+*
+*			-	name assigned to the variable
+*
+*			Convention:	OBJTYPE_NAME
+*
+*			Examples:	"UNITS_MY_UNIT" "ABILITIES_RAIN_OF_CHAOS"
+*
+*		import (boolean)
+*
+*			-	if true, imports the variable into the map as a global
+*
+*	function getvarobjectname(value)
+*
+*		given a value, retrieves the name of an object
+*
+*		Examples:	getvarobjectname("hpea")	->	"UNITS_PEASANT"?
+*					getvarobjectname("Hpal")	->	"UNITS_PALADIN"?
+*
+*	function getvarobjectvalue(objectname)
+*
+*		given a name, retrieves the value of an object
+*
+*		Examples:	getvarobjectvalue("UNITS_MY_UNIT")	->	"hpea"?
+*					getvarobjectvalue("UNITS_MY_ABIL")	->	"abil"?
+*
+*	function updateobjects()
+*
+*		updates the object table
+*
+*		this should always be called at the end of any script
+*
+*		Example
+*
+*			getvarobject("hpea", "units", "UNITS_NEW_PEASANT", true)
+*			updateobjects()
+*/
+
 //! externalblock extension=lua FileExporter $FILENAME$
     //! runtextmacro LUA_FILE_HEADER()
     

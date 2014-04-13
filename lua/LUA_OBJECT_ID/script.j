@@ -1,30 +1,57 @@
-//GetObjectId 1.0.0.5
+/*
+*	function getobjectid(objectbase, objecttype)
+*
+*		generates a unique object id
+*
+*		objectbase
+*
+*			-	refers to the base of the object
+*
+*				Examples:	"hpea" "Amoy" "Bphx"
+*
+*		objecttype
+*
+*			-	refers to the type of object to create
+*
+*				Examples:	"units", "abilities", "items"
+*
+*/
 //! externalblock extension=lua FileExporter $FILENAME$
     //! runtextmacro LUA_FILE_HEADER()
     //! i writelua("GetObjectId", [[
     //////////////////////////////////////////////////////////////////
     //code
 
-    //! i function getobjectid(obj, objecttype)
-        //obj refers to the base object
-            //"hpea", "Amov", "Bphx", etc
-        //objectType refers to the type of object to create
-        
+    //! i function getobjectid(objectbase, objecttype)
+		/*
+		*	set object type
+		*/
         //! i if (currentobjecttype() ~= objecttype) then
             //! i setobjecttype(objecttype)
         //! i end
-        //! i local object = generateid(obj)
-        //! i while (
-            //! i objectexists(object) or 
-            //! i string.find(object, "'", 1, true) ~= nil or 
-            //! i string.find(object, '\\', 1, true) ~= nil or 
-            //! i string.find(object, ',', 1, true) ~= nil or 
-            //! i string.find(object, '/', 1, true) ~= nil) do
-            
-            //! i object = generateid(obj)
-            
-        //! i end
-        //! i return object
+		
+		/*
+		*	the object id
+		*/
+		//! i local objectid
+		
+		/*
+		*	find a unique object id that does not contain
+		*
+		*		'	\	,	/
+		*/
+		//! i repeat
+			//! i objectid = generateid(objectbase)
+		//! i until
+		//! i (
+			//! i objectexists(objectid) or
+			//! i string.find(objectid, "'", 1, true) ~= nil or 
+            //! i string.find(objectid, '\\', 1, true) ~= nil or 
+            //! i string.find(objectid, ',', 1, true) ~= nil or 
+            //! i string.find(objectid, '/', 1, true) ~= nil
+		//! i )
+		
+        //! i return objectid
     //! i end
 
     //end code

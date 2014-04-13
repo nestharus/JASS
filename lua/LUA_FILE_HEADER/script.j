@@ -60,6 +60,11 @@
 *		working on the same map
 *
 *			-	function outputdirectories()
+*
+*		output logs is used to display logs so that you don't have
+*		to go to grimex.txt and reload it
+*
+*			-	function outputlogs()
 */
 
 //! textmacro LUA_FILE_HEADER
@@ -294,6 +299,9 @@
 		//! i end
 		//! i function outputdirectories()
 			//! i print(PATH_LUA_JASS, PATH_JASS)
+		//! i end
+		//! i function outputlogs()
+			//! i os.execute("start notepad.exe " .. PATH_JASSNEWGENPACK .. "logs\\" .. "grimex.txt")
 		//! i end
 		
 		/*
