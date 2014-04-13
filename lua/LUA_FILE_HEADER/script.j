@@ -6,19 +6,19 @@
 	/*
 	*	comment after initialization
 	*/
-    /*
+    ///*
     //! externalblock extension=lua FileExporter $FILENAME$
         //! runtextmacro LUA_FILE_HEADER()
         //! i initmap()
     //! endexternalblock
-    */
+    //*/
 
     /*
 	*	replace FILE_NAME with the name of your map
 	*
 	*	uncomment after initialization
 	*/
-    //! import "luajass.FILE_NAME.j"
+    ///! import "luajass.FILE_NAME.j"
 	
 	/*
 	*	for initialization, you will also have to do the following
