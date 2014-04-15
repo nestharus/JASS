@@ -111,17 +111,19 @@ struct UnitIndexer extends array
     
     private static method onDeindex takes nothing returns boolean
         local p_UnitIndex index = GetUnitUserData(GetTriggerUnit())
-        
-		call PreGameEvent.removeUnitIndex(index)
 		
-		call fire(thistype(index).Event.ON_DEINDEX, index)
-		
-		call thistype(index).Event.destroyDeindex()
-		
-		call DestroyTrigger(thistype(index).deindexTrigger)
-		set thistype(index).deindexTrigger = null
-		
-		call index.destroy()
+		if (GetUnitAbilityLevel(GetTriggerUnit(), ABILITIES_UNIT_INDEXER) == 0) then
+			call PreGameEvent.removeUnitIndex(index)
+			
+			call fire(thistype(index).Event.ON_DEINDEX, index)
+			
+			call thistype(index).Event.destroyDeindex()
+			
+			call DestroyTrigger(thistype(index).deindexTrigger)
+			set thistype(index).deindexTrigger = null
+			
+			call index.destroy()
+		endif
         
         return false
     endmethod
