@@ -1,4 +1,4 @@
-library UnitIndexer /* v5.0.0.1
+library UnitIndexer /* v5.0.1.1
 ************************************************************************************
 *
 *   */ uses /*
@@ -21,7 +21,7 @@ library UnitIndexer /* v5.0.0.1
 *       	static boolean enabled
 *				-	is UnitIndexer onUnitIndex enabled?
 *
-*       	static constant Trigger GlobalEvent.ON_INDEX
+*       	readonly static Trigger GlobalEvent.ON_INDEX
 *				-	this is a global event that runs whenever any unit is indexed
 *
 *				Examples:	UnitIndexer.GlobalEvent.ON_INDEX.reference(yourTrigger)
@@ -33,11 +33,18 @@ library UnitIndexer /* v5.0.0.1
 *				Examples:	unitIndex.indexer.Event.ON_DEINDEX.reference(yourTrigger)
 *							unitIndex.indexer.Event.ON_DEINDEX.register(yourCode)
 *
-*       	readonly UnitIndex eventIndex
+*			readonly static Trigger GlobalEvent.ON_DEINDEX
+*				-	this is ON_DEINDEX, but global
+*				-	this runs after unit specific deindex events
+*
+*				Examples:	UnitIndexer.GlobalEvent.ON_DEINDEX.reference(yourTrigger)
+*							UnitIndexer.GlobalEvent.ON_DEINDEX.register(yourCode)
+*
+*       	readonly static UnitIndex eventIndex
 *				-	when a unit is indexed or deindexed, this value stores
 *					the index of that unit
 *
-*       	readonly unit eventUnit
+*       	readonly static unit eventUnit
 *				-	when a unit is indexed or deindexed, this value stores
 *					the unit
 *
@@ -80,11 +87,11 @@ library UnitIndexer /* v5.0.0.1
 *			static boolean enabled
 *				-	is UnitIndexer onUnitIndex enabled?
 *
-*           static readonly thistype eventIndex
+*           readonly static thistype eventIndex
 *				-	when a unit is indexed or deindexed, this value stores
 *					the index of that unit
 *
-*			static readonly unit eventUnit
+*			readonly static unit eventUnit
 *				-	when a unit is indexed or deindexed, this value stores
 *					the unit
 *
@@ -98,7 +105,7 @@ library UnitIndexer /* v5.0.0.1
 *				-	the indexer in charge of handling the unit
 *					useful for deindex event, which is unit specific
 *
-*			static readonly Trigger GlobalEvent.ON_INDEX
+*			readonly static Trigger GlobalEvent.ON_INDEX
 *				-	this is a global event that runs whenever any unit is indexed
 *
 *				Examples:	Struct.GlobalEvent.ON_INDEX.reference(yourTrigger)
@@ -109,6 +116,13 @@ library UnitIndexer /* v5.0.0.1
 *
 *				Examples:	struct.Event.ON_DEINDEX.reference(yourTrigger)
 *							struct.Event.ON_DEINDEX.register(yourCode)
+*
+*			readonly static Trigger GlobalEvent.ON_DEINDEX
+*				-	this is ON_DEINDEX, but global
+*				-	this runs after unit specific deindex events
+*
+*				Examples:	Struct.GlobalEvent.ON_DEINDEX.reference(yourTrigger)
+*							Struct.GlobalEvent.ON_DEINDEX.register(yourCode)
 *
 *		Operators
 *		-------------------------
@@ -179,8 +193,10 @@ library UnitIndexer /* v5.0.0.1
 		*	onUnitDeindex
 		*/
 		static if thistype.onUnitDeindex.exists then
-			private static boolexpr onDeindexExpression
-		
+			static if thistype.onUnitIndex.exists then
+				private static boolexpr onDeindexExpression
+			endif
+			
 			private static method onDeindexEvent takes nothing returns boolean
                 call thistype(eventIndex).onUnitDeindex()
 				
@@ -190,17 +206,6 @@ library UnitIndexer /* v5.0.0.1
 				
                 return false
             endmethod
-		
-			/*
-			*	if there is no onUnitIndex, still need the event to register onUnitDeindex
-			*/
-			static if not thistype.onUnitIndex.exists then
-				private static method onIndexEvent takes nothing returns boolean
-					call UnitIndexer(eventIndex).Event.ON_DEINDEX.register(onDeindexExpression)
-					
-					return false
-				endmethod
-			endif
         endif
 		
 		/*
@@ -224,7 +229,7 @@ library UnitIndexer /* v5.0.0.1
 		
 		private static method onInit takes nothing returns nothing
 			local thistype this = 8191
-		
+			
 			loop
 				set unitIndexDelegate = this
 				
@@ -232,14 +237,14 @@ library UnitIndexer /* v5.0.0.1
 				set this = this - 1
 			endloop
 			
-			static if thistype.onUnitDeindex.exists then
-				set onDeindexExpression = Condition(function thistype.onDeindexEvent)
-			endif
-			
 			static if thistype.onUnitIndex.exists then
+				static if thistype.onUnitDeindex.exists then
+					set onDeindexExpression = Condition(function thistype.onDeindexEvent)
+				endif
+			
 				call UnitIndexer.GlobalEvent.ON_INDEX.register(Condition(function thistype.onIndexEvent))
 			elseif thistype.onUnitDeindex.exists then
-				call UnitIndexer.GlobalEvent.ON_INDEX.register(Condition(function thistype.onIndexEvent))
+				call UnitIndexer.GlobalEvent.ON_DEINDEX.register(Condition(function thistype.onDeindexEvent))
 			endif
 		endmethod
     endmodule

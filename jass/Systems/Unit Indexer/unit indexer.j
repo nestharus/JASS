@@ -8,8 +8,9 @@
 *
 *       static boolean enabled = true
 *
-*       static constant Trigger GlobalEvent.ON_INDEX
-*       constant Trigger Event.ON_DEINDEX
+*       readonly static Trigger GlobalEvent.ON_INDEX
+*		readonly static Trigger GlobalEvent.ON_DEINDEX
+*       readonly Trigger Event.ON_DEINDEX
 *
 *       readonly UnitIndex eventIndex = 0
 *       readonly unit eventUnit = null
@@ -40,23 +41,35 @@ private struct WrappedTrigger extends array
     endmethod
 endstruct
 
-private struct UnitIndexerTrigger extends array
+private struct UnitIndexerTriggerGlobal extends array
     readonly static WrappedTrigger  ON_INDEX
-    readonly  		Trigger         ON_DEINDEX
-    
-    private static method init takes nothing returns nothing
+	readonly static Trigger         ON_DEINDEX
+	
+	private static method init takes nothing returns nothing
         set ON_INDEX = Trigger.create()
+        set ON_DEINDEX = Trigger.create()
     endmethod
 	
+	implement Init
+endstruct
+
+private keyword ON_DEINDEX_MAIN
+private struct UnitIndexerTrigger extends array
+	readonly  		Trigger         ON_DEINDEX
+	readonly		Trigger			ON_DEINDEX_MAIN
+    
 	method createDeindex takes nothing returns nothing
 		set ON_DEINDEX = Trigger.create()
+		set ON_DEINDEX_MAIN = Trigger.create()
+		
+		call ON_DEINDEX_MAIN.reference(ON_DEINDEX)
+		call ON_DEINDEX_MAIN.reference(UnitIndexerTriggerGlobal.ON_DEINDEX)
 	endmethod
 	
 	method destroyDeindex takes nothing returns nothing
+		call ON_DEINDEX_MAIN.destroy()
 		call ON_DEINDEX.destroy()
 	endmethod
-    
-    implement Init
 endstruct
 
 struct UnitIndexer extends array
@@ -70,7 +83,7 @@ struct UnitIndexer extends array
         return eventIndex.unit
     endmethod
 	
-	static method operator GlobalEvent takes nothing returns UnitIndexerTrigger
+	static method operator GlobalEvent takes nothing returns UnitIndexerTriggerGlobal
 		return 0
 	endmethod
     method operator Event takes nothing returns UnitIndexerTrigger
@@ -115,7 +128,7 @@ struct UnitIndexer extends array
 		if (GetUnitAbilityLevel(GetTriggerUnit(), ABILITIES_UNIT_INDEXER) == 0) then
 			call PreGameEvent.removeUnitIndex(index)
 			
-			call fire(thistype(index).Event.ON_DEINDEX, index)
+			call fire(thistype(index).Event.ON_DEINDEX_MAIN, index)
 			
 			call thistype(index).Event.destroyDeindex()
 			
