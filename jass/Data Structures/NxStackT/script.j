@@ -1,10 +1,10 @@
-library NxStackT /* v1.0.0.0
+library NxStackT /* v1.0.0.1
 ************************************************************************************
 *
 *   */uses/*
 *   
-*       */ ErrorMessage /*         hiveworkshop.com/forums/submissions-414/snippet-error-message-239210/
-*       */ Table        /*
+*       */ ErrorMessage /*
+*       */ TableField   /*
 *
 ************************************************************************************
 *
@@ -44,37 +44,29 @@ library NxStackT /* v1.0.0.0
 ************************************************************************************/
     private keyword isNode
     private keyword isCollection
+	private keyword p_next
+	private keyword p_first
+	
     module NxStackT
         private static thistype nodeCount = 0
         
-        debug private static Table p_isNode
-        debug method operator isNode takes nothing returns boolean
-            return p_isNode.boolean[this]
-        endmethod
-        debug method operator isNode= takes boolean value returns nothing
-            set p_isNode.boolean[this] = value
-        endmethod
+		static if DEBUG_MODE then
+			//! runtextmacro CREATE_TABLE_FIELD("public", "boolean", "isNode", "boolean")
+			//! runtextmacro CREATE_TABLE_FIELD("public", "boolean", "isCollection", "boolean")
+		endif
         
-        debug private static Table p_isCollection
-        debug method operator isCollection takes nothing returns boolean
-            return p_isCollection.boolean[this]
-        endmethod
-        debug method operator isCollection= takes boolean value returns nothing
-            set p_isCollection.boolean[this] = value
-        endmethod
-        
-        private static Table _next
+		//! runtextmacro CREATE_TABLE_FIELD("public", "integer", "p_next", "thistype")
         method operator next takes nothing returns thistype
             debug call ThrowError(this == 0,        "NxStack", "next", "thistype", this, "Attempted To Go Out Of Bounds.")
             debug call ThrowError(not isNode,       "NxStack", "next", "thistype", this, "Attempted To Read Invalid Node.")
-            return _next
+            return p_next
         endmethod
         
-        private static Table _first
+		//! runtextmacro CREATE_TABLE_FIELD("public", "integer", "p_first", "thistype")
         method operator first takes nothing returns thistype
             debug call ThrowError(this == 0,            "NxStack", "first", "thistype", this, "Attempted To Read Null Stack.")
             debug call ThrowError(not isCollection,     "NxStack", "first", "thistype", this, "Attempted To Read Invalid Stack.")
-            return _first
+            return p_first
         endmethod
         
         static method operator sentinel takes nothing returns integer
@@ -82,13 +74,13 @@ library NxStackT /* v1.0.0.0
         endmethod
         
         private static method allocateNode takes nothing returns thistype
-            local thistype this = thistype(0)._next
+            local thistype this = thistype(0).p_next
             
             if (0 == this) then
                 set this = nodeCount + 1
                 set nodeCount = this
             else
-                set thistype(0)._next = _next
+                set thistype(0).p_next = p_next
             endif
             
             return this
@@ -102,13 +94,13 @@ library NxStackT /* v1.0.0.0
             
             debug set node.isNode = true
             
-            set node._next = _first
-            set _first = node
+            set node.p_next = p_first
+            set p_first = node
             
             return node
         endmethod
         method pop takes nothing returns nothing
-            local thistype node = _first
+            local thistype node = p_first
             
             debug call ThrowError(this == 0,            "NxStack", "pop", "thistype", this, "Attempted To Pop Null Stack.")
             debug call ThrowError(not isCollection,     "NxStack", "pop", "thistype", this, "Attempted To Pop Invalid Stack.")
@@ -116,30 +108,30 @@ library NxStackT /* v1.0.0.0
             
             debug set node.isNode = false
             
-            set _first = node._next
+            set p_first = node.p_next
             
-            set node._next = thistype(0)._next
-            set thistype(0)._next = node
+            set node.p_next = thistype(0).p_next
+            set thistype(0).p_next = node
         endmethod
         private method getBottom takes nothing returns thistype
-            set this = _first
+            set this = p_first
         
             loop
-                exitwhen _next == 0
-                set this = _next
+                exitwhen p_next == 0
+                set this = p_next
             endloop
             
             return this
         endmethod
         method clear takes nothing returns nothing
-            debug local thistype node = _first
+            debug local thistype node = p_first
         
             debug call ThrowError(this == 0,            "NxStack", "clear", "thistype", this, "Attempted To Clear Null Stack.")
             
             debug if (not isCollection) then
                 debug set isCollection = true
                 
-                debug set _first = 0
+                debug set p_first = 0
                 
                 debug return
             debug endif
@@ -148,17 +140,17 @@ library NxStackT /* v1.0.0.0
                 loop
                     exitwhen node == 0
                     set node.isNode = false
-                    set node = node._next
+                    set node = node.p_next
                 endloop
             endif
             
-            if (_first == 0) then
+            if (p_first == 0) then
                 return
             endif
             
-            set getBottom()._next = thistype(0)._next
-            set thistype(0)._next = _first
-            set _first = 0
+            set getBottom().p_next = thistype(0).p_next
+            set thistype(0).p_next = p_first
+            set p_first = 0
         endmethod
         method destroy takes nothing returns nothing
             debug call ThrowError(this == 0,            "NxStack", "destroy", "thistype", this, "Attempted To Destroy Null Stack.")
@@ -170,11 +162,11 @@ library NxStackT /* v1.0.0.0
         endmethod
         
         private static method onInit takes nothing returns nothing
-            set _next = Table.create()
-            set _first = Table.create()
-            set p_isNode = Table.create()
-            set p_isCollection = Table.create()
-        endmethod
+            //! runtextmacro INITIALIZE_TABLE_FIELD("isNode")
+            //! runtextmacro INITIALIZE_TABLE_FIELD("isCollection")
+            //! runtextmacro INITIALIZE_TABLE_FIELD("p_next")
+            //! runtextmacro INITIALIZE_TABLE_FIELD("p_first")
+		endmethod
         
         static if DEBUG_MODE then
             static method calculateMemoryUsage takes nothing returns integer
