@@ -1,4 +1,4 @@
-library BooleanExpression /* v1.0.0.16
+library BooleanExpression /* v1.0.0.17
 ************************************************************************************
 *
 *   */ uses /*
@@ -651,24 +651,17 @@ library BooleanExpression /* v1.0.0.16
         //! runtextmacro CREATE_TABLE_FIELD("public", "boolexpr", "top", "boolexpr")
         
         /*
-        *   This is one ugly algorithm
-        *
         *   Move the list to an array
         *
         *   Merge slots on the array in pairs
-        *   Remove the resulting empty holes
-        *   Keep repeating until array only has 1 filled slot
         */
         //! runtextmacro USE_TABLE_FIELD_ARRAY("private", "buffer")
         method build takes nothing returns nothing
             local ListExpression node = ListExpression(this).last
             
             local integer length = 0
-            local integer segment = 0
             local integer positionStart = 0
             local integer positionEnd
-            local integer targetStart
-            local integer targetEnd
 			
             /*
             *   Get length
