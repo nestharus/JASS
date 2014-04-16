@@ -1,4 +1,4 @@
-library BooleanExpression /* v1.0.0.15
+library BooleanExpression /* v1.0.0.16
 ************************************************************************************
 *
 *   */ uses /*
@@ -669,7 +669,7 @@ library BooleanExpression /* v1.0.0.15
             local integer positionEnd
             local integer targetStart
             local integer targetEnd
-            
+			
             /*
             *   Get length
             */
@@ -681,10 +681,12 @@ library BooleanExpression /* v1.0.0.15
                 set node = node.prev
             endloop
             if (length == 0) then
+				call top_clear()
+			
                 return
             endif
             set positionEnd = length
-            
+			
             /*
             *   Copy to array
             */
@@ -698,13 +700,14 @@ library BooleanExpression /* v1.0.0.15
                 endloop
                 set buffer[positionStart] = node.expression
                 set positionStart = positionStart + 1
-                
+				
+				
                 exitwhen positionStart == positionEnd
                 loop
                     set node = node.prev
                     exitwhen node.expression != null
                 endloop
-                set positionEnd = positionEnd - 1
+				set positionEnd = positionEnd - 1
                 set buffer[positionEnd] = node.expression
                 
                 set node = node.prev
@@ -715,57 +718,34 @@ library BooleanExpression /* v1.0.0.15
             */
             loop
                 exitwhen length < 2
-                
-                set positionStart = segment
-                set positionEnd = segment + length
-                
-                if (length - length/2*2 == 0) then
+				
+				set positionStart = 0
+				set positionEnd = length - 1
+				loop
+					set buffer[positionStart] = Or(buffer[positionStart], buffer[positionEnd])
+					set push().expression = buffer[positionStart]
+					set positionStart = positionStart + 1
+					set positionEnd = positionEnd - 1
+					
+					exitwhen positionStart >= positionEnd
+				endloop
+				
+				if (length - length/2*2 == 0) then
                     set length = length/2
                 else
                     set length = length/2 + 1
                 endif
-                
-                set segment = positionEnd
-                
-                set targetStart = segment
-                set targetEnd = segment + length
-                
-                loop
-                    exitwhen positionStart == positionEnd
-                    set buffer[targetStart] = buffer[positionStart]
-                    set positionStart = positionStart + 1
-                    exitwhen positionStart == positionEnd
-                    
-                    set positionEnd = positionEnd - 1
-                    set buffer[targetStart] = Or(buffer[targetStart], buffer[positionEnd])
-                    set push().expression = buffer[targetEnd]
-                    set targetStart = targetStart + 1
-                    exitwhen targetStart == targetEnd
-                    
-                    set targetEnd = targetEnd - 1
-                    set buffer[targetEnd] = buffer[positionStart]
-                    set positionStart = positionStart + 1
-                    exitwhen positionStart == positionEnd
-                    
-                    set positionEnd = positionEnd - 1
-                    set buffer[targetEnd] = Or(buffer[targetEnd], buffer[positionEnd])
-                    set push().expression = buffer[targetEnd]
-                endloop
             endloop
-            
-			if (buffer[segment + length - 1] == null) then
-				call top_clear()
-			else
-				set top = buffer[segment + length - 1]
-			endif
+			
+			set top = buffer[0]
 			
 			call buffer.clear()
         endmethod
         
         method destruct takes nothing returns nothing
             local thistype stack = this
-        
-            set top = null
+			
+            call top_clear()
             set this = first
             
             loop
