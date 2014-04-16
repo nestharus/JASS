@@ -1,4 +1,4 @@
-library Trigger /* v1.0.3.3
+library Trigger /* v1.0.4.0
 ************************************************************************************
 *
 *   */ uses /*
@@ -6,6 +6,7 @@ library Trigger /* v1.0.3.3
 *       */ ErrorMessage         /*
 *       */ BooleanExpression    /*
 *       */ NxListT              /*
+*		*/ UniqueNxListT		/*
 *       */ Init                 /*
 *
 ************************************************************************************
@@ -31,8 +32,7 @@ library Trigger /* v1.0.3.3
 *           method register takes boolexpr expression returns TriggerCondition
 *
 *           method reference takes Trigger trig returns TriggerReference
-*               -   a referenced trigger will run before this trigger
-*               -   referenced triggers run in order of reference
+*               -   like register, but for triggers instead
 *
 *           method fire takes nothing returns nothing
 *
@@ -76,8 +76,6 @@ library Trigger /* v1.0.3.3
         //! runtextmacro CREATE_TABLE_FIELD("public", "triggercondition", "tc", "triggercondition")
         
         //! runtextmacro CREATE_TABLE_FIELD("public", "integer", "expression", "BooleanExpression")                 //the trigger's expression
-        //! runtextmacro CREATE_TABLE_FIELD("public", "integer", "triggerExpression", "BooleanExpression")          //the trigger's complete expression (refs)
-        //! runtextmacro CREATE_TABLE_FIELD("public", "integer", "triggerExpressionNode", "BooleanExpression")      //the trigger's registration to complete expression
         
         //! runtextmacro CREATE_TABLE_FIELD("public", "boolean", "enabled", "boolean")
         
@@ -86,8 +84,8 @@ library Trigger /* v1.0.3.3
                 call TriggerRemoveCondition(trig, tc)
             endif
         
-            if (enabled and triggerExpression.expression != null) then
-                set tc = TriggerAddCondition(trig, triggerExpression.expression)
+            if (enabled and expression.expression != null) then
+                set tc = TriggerAddCondition(trig, expression.expression)
             else
 				call tc_clear()
             endif
@@ -98,8 +96,6 @@ library Trigger /* v1.0.3.3
             //! runtextmacro INITIALIZE_TABLE_FIELD("tc")
             
             //! runtextmacro INITIALIZE_TABLE_FIELD("expression")
-            //! runtextmacro INITIALIZE_TABLE_FIELD("triggerExpression")
-            //! runtextmacro INITIALIZE_TABLE_FIELD("triggerExpressionNode")
             
             //! runtextmacro INITIALIZE_TABLE_FIELD("enabled")
         endmethod
@@ -146,7 +142,7 @@ library Trigger /* v1.0.3.3
             *   Retrieve the expression of the referenced trigger
             */
             if (TriggerMemory(this).enabled) then
-                set expr = TriggerMemory(this).triggerExpression.expression
+                set expr = TriggerMemory(this).expression.expression
             else
                 set expr = null
             endif
@@ -241,16 +237,10 @@ library Trigger /* v1.0.3.3
             *
             *   Add even if null to ensure correct order
             */
-            set node.expr = TriggerMemory(this).triggerExpressionNode
-            if (TriggerMemory(this).enabled) then
-                set TriggerMemory(this).triggerExpressionNode = TriggerMemory(this).triggerExpression.register(TriggerMemory(this).expression.expression)
-            else
-                set TriggerMemory(this).triggerExpressionNode = TriggerMemory(this).triggerExpression.register(null)
-            endif
             if (TriggerMemory(trig).enabled) then
-                call node.expr.replace(TriggerMemory(trig).triggerExpression.expression)
+                set node.expr = TriggerMemory(this).expression.register(TriggerMemory(trig).expression.expression)
             else
-                call node.expr.replace(null)
+				set node.expr = TriggerMemory(this).expression.register(null)
             endif
             
             call TriggerMemory(this).updateTrigger()
@@ -290,7 +280,7 @@ library Trigger /* v1.0.3.3
             set node.ref.ref = node
             
             if (trig.enabled) then
-                call node.expr.replace(trig.triggerExpression.expression)
+                call node.expr.replace(trig.expression.expression)
             else
                 call node.expr.replace(null)
             endif
@@ -337,6 +327,11 @@ library Trigger /* v1.0.3.3
                 *   (triggers no longer referenced by this)
                 */
                 call node.ref.remove()
+				
+				/*
+				*	unregisters code
+				*/
+				call node.expr.unregister()
                 
                 set node = node.next
             endloop
@@ -383,6 +378,10 @@ library Trigger /* v1.0.3.3
         implement Init
     endstruct
     
+	private struct TriggerConditionDataCollection extends array
+		implement UniqueNxListT
+	endstruct
+	
     private struct TriggerConditionData extends array
         static if DEBUG_MODE then
             //! runtextmacro CREATE_TABLE_FIELD("private", "boolean", "isCondition", "boolean")
@@ -391,11 +390,6 @@ library Trigger /* v1.0.3.3
         //! runtextmacro CREATE_TABLE_FIELD("private", "integer", "trig", "TriggerMemory")
         
         private static method updateTrigger takes TriggerMemory trig returns nothing
-            if (trig.enabled) then
-                call trig.triggerExpressionNode.replace(trig.expression.expression)
-            else
-                call trig.triggerExpressionNode.replace(null)
-            endif
             call trig.updateTrigger()
             call TriggerReferencedList(trig).updateExpression()
         endmethod
@@ -406,6 +400,8 @@ library Trigger /* v1.0.3.3
             set this.trig = trig
             
             debug set isCondition = true
+			
+			call TriggerConditionDataCollection(trig).enqueue(this)
             
             call updateTrigger(trig)
             
@@ -417,6 +413,8 @@ library Trigger /* v1.0.3.3
             debug call ThrowError(not isCondition,  "Trigger", "destroy", "TriggerConditionData", this, "Attempted To Destroy Invalid TriggerConditionData.")
             
             call BooleanExpression(this).unregister()
+			
+			call TriggerConditionDataCollection(this).remove()
             
             debug set isCondition = false
             
@@ -434,7 +432,7 @@ library Trigger /* v1.0.3.3
             
             call updateTrigger(trig)
         endmethod
-        
+		
         private static method init takes nothing returns nothing
             static if DEBUG_MODE then
                 //! runtextmacro INITIALIZE_TABLE_FIELD("isCondition")
@@ -478,10 +476,9 @@ library Trigger /* v1.0.3.3
             
             call TriggerReferencedList(this).clear()
             call TriggerReferenceListData(this).clear()
+			call TriggerConditionDataCollection(this).clear()
             
             set TriggerMemory(this).expression = BooleanExpression.create()
-            set TriggerMemory(this).triggerExpression = BooleanExpression.create()
-            set TriggerMemory(this).triggerExpressionNode = TriggerMemory(this).triggerExpression.register(null)
             
             set TriggerMemory(this).trig = CreateTrigger()
             
@@ -494,6 +491,7 @@ library Trigger /* v1.0.3.3
             debug set isTrigger = false
         
             call TriggerReferenceList(this).purge()
+			call TriggerConditionDataCollection(this).destroy()
             
             if (TriggerMemory(this).tc != null) then
                 call TriggerRemoveCondition(TriggerMemory(this).trig, TriggerMemory(this).tc)
@@ -503,7 +501,6 @@ library Trigger /* v1.0.3.3
 			call TriggerMemory(this).trig_clear()
             
             call TriggerMemory(this).expression.destroy()
-            call TriggerMemory(this).triggerExpression.destroy()
             
             call TriggerAllocator(this).deallocate()
         endmethod
@@ -519,11 +516,21 @@ library Trigger /* v1.0.3.3
         endmethod
         
         method clear takes nothing returns nothing
+			local TriggerConditionDataCollection node = TriggerConditionDataCollection(this).first
+		
             debug call ThrowError(this == 0,        "Trigger", "clear", "Trigger", this, "Attempted To Clear Null Trigger.")
             debug call ThrowError(not isTrigger,    "Trigger", "clear", "Trigger", this, "Attempted To Clear Invalid Trigger.")
-        
-            call TriggerMemory(this).expression.clear()
-            call TriggerMemory(this).triggerExpressionNode.replace(null)
+			
+			loop
+				exitwhen node == 0
+				
+				call BooleanExpression(node).unregister()
+				
+				set node = node.next
+			endloop
+			
+			call TriggerConditionDataCollection(this).clear()
+			
             call TriggerMemory(this).updateTrigger()
             call TriggerReferencedList(this).updateExpression()
         endmethod
@@ -534,8 +541,6 @@ library Trigger /* v1.0.3.3
             
             call TriggerReferenceList(this).clearReferences()
             
-            call TriggerMemory(this).triggerExpression.clear()
-            set TriggerMemory(this).triggerExpressionNode = TriggerMemory(this).triggerExpression.register(TriggerMemory(this).expression.expression)
             call TriggerMemory(this).updateTrigger()
             call TriggerReferencedList(this).updateExpression()
         endmethod
@@ -567,7 +572,7 @@ library Trigger /* v1.0.3.3
             
             set TriggerMemory(this).trig = CreateTrigger()
             if (TriggerMemory(this).enabled) then
-                set TriggerMemory(this).tc = TriggerAddCondition(TriggerMemory(this).trig, TriggerMemory(this).triggerExpression.expression)
+                set TriggerMemory(this).tc = TriggerAddCondition(TriggerMemory(this).trig, TriggerMemory(this).expression.expression)
             else
 				call TriggerMemory(this).tc_clear()
             endif
@@ -607,11 +612,21 @@ library Trigger /* v1.0.3.3
         
         static if DEBUG_MODE then
             static method calculateMemoryUsage takes nothing returns integer
-                return TriggerAllocator.calculateMemoryUsage() + TriggerReferenceListData.calculateMemoryUsage() + TriggerReferencedList.calculateMemoryUsage() + BooleanExpression.calculateMemoryUsage()
+                return /*
+				*/	TriggerAllocator.calculateMemoryUsage() + /*
+				*/	TriggerConditionDataCollection.calculateMemoryUsage() + /*
+				*/	TriggerReferenceListData.calculateMemoryUsage() + /*
+				*/	TriggerReferencedList.calculateMemoryUsage() + /*
+				*/	BooleanExpression.calculateMemoryUsage()
             endmethod
             
             static method getAllocatedMemoryAsString takes nothing returns string
-                return "(Trigger)[" + TriggerAllocator.getAllocatedMemoryAsString() + "], (Trigger Reference)[" + TriggerReferenceListData.getAllocatedMemoryAsString() + "], (Trigger Reference Back)[" + TriggerReferencedList.getAllocatedMemoryAsString() + "], (Boolean Expression (all))[" + BooleanExpression.getAllocatedMemoryAsString() + "]"
+                return /*
+				*/	"(Trigger)[" + TriggerAllocator.getAllocatedMemoryAsString() + "], " + /*
+				*/	"(Trigger TriggerConditionDataCollection)[" + TriggerConditionDataCollection.getAllocatedMemoryAsString() + "], " + /*
+				*/	"(Trigger Reference)[" + TriggerReferenceListData.getAllocatedMemoryAsString() + "], " + /*
+				*/	"(Trigger Reference Back)[" + TriggerReferencedList.getAllocatedMemoryAsString() + "], " + /*
+				*/	"(Boolean Expression (all))[" + BooleanExpression.getAllocatedMemoryAsString() + "]"
             endmethod
         endif
         
