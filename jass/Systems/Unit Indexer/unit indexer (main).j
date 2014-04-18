@@ -1,11 +1,11 @@
 library UnitIndexer /* v5.1.0.0
 ************************************************************************************
 *
-*   */ uses /*
-*   
-*       */ WorldBounds         	/*
-*       */ Init              	/*
-*       */ AllocQ               /*
+*	*/ uses /*
+*
+*		*/ WorldBounds			/*
+*		*/ Init					/*
+*		*/ AllocQ				/*
 *		*/ ErrorMessage 		/*
 *		*/ StaticUniqueList 	/*
 *		*/ UnitIndexerSettings 	/*
@@ -13,15 +13,15 @@ library UnitIndexer /* v5.1.0.0
 *
 ********************************************************************************
 *
-*   struct UnitIndexer extends array
+*	struct UnitIndexer extends array
 *
-*       Fields
-*       -------------------------
+*		Fields
+*		-------------------------
 *
-*       	static boolean enabled
+*			static boolean enabled
 *				-	is UnitIndexer onUnitIndex enabled?
 *
-*       	readonly static Trigger GlobalEvent.ON_INDEX
+*			readonly static Trigger GlobalEvent.ON_INDEX
 *				-	this is a global event that runs whenever any unit is indexed
 *
 *				Examples:	UnitIndexer.GlobalEvent.ON_INDEX.reference(yourTrigger)
@@ -37,22 +37,22 @@ library UnitIndexer /* v5.1.0.0
 *				Examples:	UnitIndexer.GlobalEvent.ON_DEINDEX.reference(yourTrigger)
 *							UnitIndexer.GlobalEvent.ON_DEINDEX.register(yourCode)
 *
-*       	readonly static UnitIndex eventIndex
+*			readonly static UnitIndex eventIndex
 *				-	when a unit is indexed or deindexed, this value stores
 *					the index of that unit
 *
-*       	readonly static unit eventUnit
+*			readonly static unit eventUnit
 *				-	when a unit is indexed or deindexed, this value stores
 *					the unit
 *
 ************************************************************************************
 *
-*   struct UnitIndex extends array
+*	struct UnitIndex extends array
 *
-*       Fields
-*       -------------------------
+*		Fields
+*		-------------------------
 *
-*       	readonly unit unit
+*			readonly unit unit
 *				-	converts a unit index into a unit
 *
 *			readonly UnitIndexer indexer
@@ -62,37 +62,37 @@ library UnitIndexer /* v5.1.0.0
 *		Operators
 *		-------------------------
 *
-*       	static method operator [] takes unit whichUnit returns UnitIndex
+*			static method operator [] takes unit whichUnit returns UnitIndex
 *				-	converts a unit into a UnitIndex
 *
-*       Methods
-*       -------------------------
+*		Methods
+*		-------------------------
 *
-*       	static method exists takes unit whichUnit returns boolean
+*			static method exists takes unit whichUnit returns boolean
 *				-	determines whether the unit is indexed or not
 *
-*       	static method isDeindexing takes unit whichUnit returns boolean
+*			static method isDeindexing takes unit whichUnit returns boolean
 *				-	determines whether the unit is in the process of being deindexed or not
 *
 ************************************************************************************
 *
-*   module UnitIndex
+*	module UnitIndex
 *
 *		If you would like to create modules that work off of the UnitIndex module, implement
 *		UnitIndex at the top of your module
-*           
-*       Fields
-*       -------------------------
+*		
+*		Fields
+*		-------------------------
 *
 *			static constant boolean UNIT_INDEX = true
 *				-	this is used to make sure that only either UnitIndex or UnitIndexEx
 *					implemented.
 *
-*       	static boolean enabled
+*			static boolean enabled
 *				-	is this UnitIndex struct enabled?
 *				-	this can only be disabed if onUnitIndex exists
 *
-*           readonly unit unit
+*			readonly unit unit
 *				-	converts a unit index into a unit
 *
 *			readonly boolean isUnitIndexed
@@ -108,10 +108,10 @@ library UnitIndexer /* v5.1.0.0
 *			static method operator [] takes unit whichUnit returns thistype
 *				-	converts a unit into thistype
 *
-*       Methods
-*       -------------------------
+*		Methods
+*		-------------------------
 *
-*           static method exists takes unit whichUnit returns boolean
+*			static method exists takes unit whichUnit returns boolean
 *				-	determines whether the unit is indexed or not for the struct
 *
 *			static method isDeindexing takes unit whichUnit returns boolean
@@ -129,24 +129,24 @@ library UnitIndexer /* v5.1.0.0
 *
 ************************************************************************************
 *
-*   module UnitIndexEx
+*	module UnitIndexEx
 *
 *		If you would like to create modules that work off of the UnitIndex module, implement
 *		UnitIndex at the top of your module
-*           
-*       Fields
-*       -------------------------
+*		
+*		Fields
+*		-------------------------
 *
 *			static constant boolean UNIT_INDEX_EX = true
 *				-	this is used for modules that rely on local events
 *					it allows these modules to differentiate between UnitIndex
 *					and UnitIndexEx
 *
-*       	static boolean enabled
+*			static boolean enabled
 *				-	is this UnitIndex struct enabled?
 *				-	this can only be disabed if onUnitIndex exists
 *
-*           readonly unit unit
+*			readonly unit unit
 *				-	converts a unit index into a unit
 *
 *			readonly boolean isUnitIndexed
@@ -177,10 +177,10 @@ library UnitIndexer /* v5.1.0.0
 *			static method operator [] takes unit whichUnit returns thistype
 *				-	converts a unit into thistype
 *
-*       Methods
-*       -------------------------
+*		Methods
+*		-------------------------
 *
-*           static method exists takes unit whichUnit returns boolean
+*			static method exists takes unit whichUnit returns boolean
 *				-	determines whether the unit is indexed or not for the struct
 *
 *			static method isDeindexing takes unit whichUnit returns boolean
@@ -218,13 +218,13 @@ library UnitIndexer /* v5.1.0.0
 *					would like onInit.
 *
 ************************************************************************************/
-    globals
-        private UnitIndex p_eventIndex = 0
-    endglobals
+	globals
+		private UnitIndex p_eventIndex = 0
+	endglobals
 
-    //! runtextmacro UNIT_INDEXER_UNIT_INDEX()
-    //! runtextmacro UNIT_INDEXER_PREGAME_EVENT()
-    //! runtextmacro UNIT_INDEXER_UNIT_INDEXER()
+	//! runtextmacro UNIT_INDEXER_UNIT_INDEX()
+	//! runtextmacro UNIT_INDEXER_PREGAME_EVENT()
+	//! runtextmacro UNIT_INDEXER_UNIT_INDEXER()
 	
 	module UnitIndex
 		static if not thistype.UNIT_INDEX_EX then
@@ -293,7 +293,7 @@ library UnitIndexer /* v5.1.0.0
 				static method operator enabled takes nothing returns boolean
 					return p_enabled
 				endmethod
-				static method operator enabled=  takes boolean enable returns nothing
+				static method operator enabled=takes boolean enable returns nothing
 					set p_enabled = enable
 					
 					if (enable) then
@@ -309,7 +309,7 @@ library UnitIndexer /* v5.1.0.0
 				static method operator enabled takes nothing returns boolean
 					return true
 				endmethod
-				static method operator enabled=  takes boolean enable returns nothing
+				static method operator enabled=takes boolean enable returns nothing
 					set enable = true
 				endmethod
 			endif
@@ -376,7 +376,7 @@ library UnitIndexer /* v5.1.0.0
 				endmethod
 			endif
 		endif
-    endmodule
+	endmodule
 	
 	private struct UnitIndexList extends array
 		//! runtextmacro CREATE_TABLE_FIELD("public", "integer", "unitIndex2Node", "thistype")
@@ -394,8 +394,8 @@ library UnitIndexer /* v5.1.0.0
 		endmethod
 		
 		private static method init takes nothing returns nothing
-            //! runtextmacro INITIALIZE_TABLE_FIELD("unitIndex2Node")
-            //! runtextmacro INITIALIZE_TABLE_FIELD("node2UnitIndex")
+			//! runtextmacro INITIALIZE_TABLE_FIELD("unitIndex2Node")
+			//! runtextmacro INITIALIZE_TABLE_FIELD("node2UnitIndex")
 		endmethod
 		
 		implement NxListT
@@ -530,7 +530,7 @@ library UnitIndexer /* v5.1.0.0
 				static method operator enabled takes nothing returns boolean
 					return p_enabled
 				endmethod
-				static method operator enabled=  takes boolean enable returns nothing
+				static method operator enabled=takes boolean enable returns nothing
 					set p_enabled = enable
 					
 					if (enable) then
@@ -546,7 +546,7 @@ library UnitIndexer /* v5.1.0.0
 				static method operator enabled takes nothing returns boolean
 					return true
 				endmethod
-				static method operator enabled=  takes boolean enable returns nothing
+				static method operator enabled=takes boolean enable returns nothing
 					set enable = true
 				endmethod
 			endif
