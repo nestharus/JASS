@@ -18,28 +18,26 @@
 
 //! textmacro UNIT_INDEXER_PREGAME_EVENT
 private struct PreGameEvent extends array
-    private static boolean isGameLoaded = false
+    readonly static boolean isGameLoaded = false
 
     implement StaticUniqueList
     
-    private static method p_fireTrigger takes trigger whichTrigger returns nothing
+    private static method p_fireTrigger takes Trigger whichTrigger returns nothing
         local thistype this = first
         local integer prevIndexedUnitId = p_eventIndex
         
         loop
-            exitwhen this == sentinel or not IsTriggerEnabled(whichTrigger)
+            exitwhen this == sentinel or not whichTrigger.enabled
             
             set p_eventIndex = this
-            if (TriggerEvaluate(whichTrigger)) then
-                call TriggerExecute(whichTrigger)
-            endif
-                
+			call whichTrigger.fire()
+			
             set this = next
         endloop
         
         set p_eventIndex = prevIndexedUnitId
     endmethod
-    static method fireTrigger takes trigger whichTrigger returns nothing
+    static method fireTrigger takes Trigger whichTrigger returns nothing
         if (first != 0) then
             call p_fireTrigger(whichTrigger)
         endif
@@ -56,8 +54,8 @@ private struct PreGameEvent extends array
             exitwhen this == sentinel
             
             set p_eventIndex = this
-            call TriggerEvaluate(triggerContainer)
-                
+			call TriggerEvaluate(triggerContainer)
+			
             set this = next
         endloop
         

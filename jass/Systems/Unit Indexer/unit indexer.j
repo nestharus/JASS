@@ -27,7 +27,7 @@ private struct WrappedTrigger extends array
     method reference takes Trigger whichTrigger returns TriggerReference
         local TriggerReference triggerReference = Trigger(this).reference(whichTrigger)
 		
-        call PreGameEvent.fireTrigger(whichTrigger.trigger)
+        call PreGameEvent.fireTrigger(whichTrigger)
 		
 		return triggerReference
     endmethod

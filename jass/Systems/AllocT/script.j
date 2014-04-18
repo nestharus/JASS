@@ -1,4 +1,4 @@
-library AllocT /* v1.0.1.0
+library AllocT /* v1.0.1.1
 *************************************************************************************
 *
 *   */uses/*
@@ -24,8 +24,8 @@ library AllocT /* v1.0.1.0
         private static integer instanceCount = 0
         
         debug method operator isAllocated takes nothing returns boolean
-            return recycler[this] == -1
-        endmethod
+            debug return recycler[this] == -1
+        debug endmethod
         
         static method allocate takes nothing returns thistype
             local thistype this = recycler[0]

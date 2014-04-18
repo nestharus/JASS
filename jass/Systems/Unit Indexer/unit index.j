@@ -100,23 +100,4 @@ struct UnitIndex extends array
 		return p_UnitIndex(this).indexer
     endmethod
 endstruct
-
-private struct UnitIndexDelegate extends array
-    private delegate UnitIndex unitIndex
-    private delegate UnitIndexer unitIndexer
-    
-    private static method init takes nothing returns nothing
-        local thistype this = 8191
-    
-        loop
-            set unitIndex = this
-			set unitIndexer = this
-            
-            exitwhen this == 0
-            set this = this - 1
-        endloop
-    endmethod
-    
-    implement Init
-endstruct
 //! endtextmacro

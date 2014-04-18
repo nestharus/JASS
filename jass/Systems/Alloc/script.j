@@ -1,4 +1,4 @@
-library Alloc /* v1.1.1.0
+library Alloc /* v1.1.1.1
 *************************************************************************************
 *
 *   */uses/*
@@ -22,8 +22,8 @@ library Alloc /* v1.1.1.0
         private static integer array recycler
         
         debug method operator isAllocated takes nothing returns boolean
-            return recycler[this] == -1
-        endmethod
+            debug return recycler[this] == -1
+        debug endmethod
         
         static method allocate takes nothing returns thistype
             local thistype this = recycler[0]
