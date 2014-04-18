@@ -1,4 +1,4 @@
-library UnitIndexer /* v5.1.0.0
+library UnitIndexer /* v5.1.0.1
 ************************************************************************************
 *
 *	*/ uses /*
@@ -293,7 +293,7 @@ library UnitIndexer /* v5.1.0.0
 				static method operator enabled takes nothing returns boolean
 					return p_enabled
 				endmethod
-				static method operator enabled=takes boolean enable returns nothing
+				static method operator enabled= takes boolean enable returns nothing
 					set p_enabled = enable
 					
 					if (enable) then
@@ -309,7 +309,7 @@ library UnitIndexer /* v5.1.0.0
 				static method operator enabled takes nothing returns boolean
 					return true
 				endmethod
-				static method operator enabled=takes boolean enable returns nothing
+				static method operator enabled= takes boolean enable returns nothing
 					set enable = true
 				endmethod
 			endif
@@ -530,7 +530,7 @@ library UnitIndexer /* v5.1.0.0
 				static method operator enabled takes nothing returns boolean
 					return p_enabled
 				endmethod
-				static method operator enabled=takes boolean enable returns nothing
+				static method operator enabled= takes boolean enable returns nothing
 					set p_enabled = enable
 					
 					if (enable) then
@@ -546,7 +546,7 @@ library UnitIndexer /* v5.1.0.0
 				static method operator enabled takes nothing returns boolean
 					return true
 				endmethod
-				static method operator enabled=takes boolean enable returns nothing
+				static method operator enabled= takes boolean enable returns nothing
 					set enable = true
 				endmethod
 			endif
