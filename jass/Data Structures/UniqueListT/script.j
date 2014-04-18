@@ -1,14 +1,14 @@
-library NxListT /* v1.0.0.1
+library UniqueListT /* v1.0.0.1
 ************************************************************************************
 *
 *   */uses/*
 *   
 *       */ ErrorMessage /*
-*       */ TableField   /*
+*		*/ TableField	/*
 *
 ************************************************************************************
 *
-*   module NxListT
+*   module ListT
 *
 *       Description
 *       -------------------------
@@ -31,11 +31,12 @@ library NxListT /* v1.0.0.1
 *       Methods
 *       -------------------------
 *
+*           static method create takes nothing returns thistype
 *           method destroy takes nothing returns nothing
 *               - May only destroy lists
 *
-*           method push takes nothing returns thistype
-*           method enqueue takes nothing returns thistype
+*           method push takes thistype node returns nothing
+*           method enqueue takes thistype node returns thistype
 *
 *           method pop takes nothing returns nothing
 *           method dequeue takes nothing returns nothing
@@ -43,7 +44,6 @@ library NxListT /* v1.0.0.1
 *           method remove takes nothing returns nothing
 *
 *           method clear takes nothing returns nothing
-*               -   Initializes list, use instead of create
 *
 *           debug static method calculateMemoryUsage takes nothing returns integer
 *           debug static method getAllocatedMemoryAsString takes nothing returns string
@@ -51,52 +51,54 @@ library NxListT /* v1.0.0.1
 ************************************************************************************/
     private keyword isNode
     private keyword isCollection
+	
     private keyword p_list
     private keyword p_next
     private keyword p_prev
     private keyword p_first
     private keyword p_last
-    
-    module NxListT
+
+    module UniqueListT
+        private static thistype collectionCount = 0
         private static thistype nodeCount = 0
-        
-        static if DEBUG_MODE then
+		
+		static if DEBUG_MODE then
             //! runtextmacro CREATE_TABLE_FIELD("public", "boolean", "isNode", "boolean")
             //! runtextmacro CREATE_TABLE_FIELD("public", "boolean", "isCollection", "boolean")
         endif
         
-        //! runtextmacro CREATE_TABLE_FIELD("public", "integer", "p_list", "thistype")
+		//! runtextmacro CREATE_TABLE_FIELD("public", "integer", "p_list", "thistype")
         method operator list takes nothing returns thistype
-            debug call ThrowError(this == 0,    "NxList", "list", "thistype", this, "Attempted To Read Null Node.")
-            debug call ThrowError(not isNode,   "NxList", "list", "thistype", this, "Attempted To Read Invalid Node.")
+            debug call ThrowError(this == 0,    "List", "list", "thistype", this, "Attempted To Read Null Node.")
+            debug call ThrowError(not isNode,   "List", "list", "thistype", this, "Attempted To Read Invalid Node.")
             return p_list
         endmethod
         
         //! runtextmacro CREATE_TABLE_FIELD("public", "integer", "p_next", "thistype")
         method operator next takes nothing returns thistype
-            debug call ThrowError(this == 0,    "NxList", "next", "thistype", this, "Attempted To Go Out Of Bounds.")
-            debug call ThrowError(not isNode,   "NxList", "next", "thistype", this, "Attempted To Read Invalid Node.")
+            debug call ThrowError(this == 0,    "List", "next", "thistype", this, "Attempted To Go Out Of Bounds.")
+            debug call ThrowError(not isNode,   "List", "next", "thistype", this, "Attempted To Read Invalid Node.")
             return p_next
         endmethod
         
         //! runtextmacro CREATE_TABLE_FIELD("public", "integer", "p_prev", "thistype")
         method operator prev takes nothing returns thistype
-            debug call ThrowError(this == 0,    "NxList", "prev", "thistype", this, "Attempted To Go Out Of Bounds.")
-            debug call ThrowError(not isNode,   "NxList", "prev", "thistype", this, "Attempted To Read Invalid Node.")
+            debug call ThrowError(this == 0,    "List", "prev", "thistype", this, "Attempted To Go Out Of Bounds.")
+            debug call ThrowError(not isNode,   "List", "prev", "thistype", this, "Attempted To Read Invalid Node.")
             return p_prev
         endmethod
         
-        //! runtextmacro CREATE_TABLE_FIELD("public", "integer", "p_first", "thistype") 
+        //! runtextmacro CREATE_TABLE_FIELD("public", "integer", "p_first", "thistype")
         method operator first takes nothing returns thistype
-            debug call ThrowError(this == 0,        "NxList", "first", "thistype", this, "Attempted To Read Null List.")
-            debug call ThrowError(not isCollection, "NxList", "first", "thistype", this, "Attempted To Read Invalid List.")
+            debug call ThrowError(this == 0,        "List", "first", "thistype", this, "Attempted To Read Null List.")
+            debug call ThrowError(not isCollection, "List", "first", "thistype", this, "Attempted To Read Invalid List.")
             return p_first
         endmethod
         
         //! runtextmacro CREATE_TABLE_FIELD("public", "integer", "p_last", "thistype")
         method operator last takes nothing returns thistype
-            debug call ThrowError(this == 0,        "NxList", "last", "thistype", this, "Attempted To Read Null List.")
-            debug call ThrowError(not isCollection, "NxList", "last", "thistype", this, "Attempted To Read Invalid List.")
+            debug call ThrowError(this == 0,        "List", "last", "thistype", this, "Attempted To Read Null List.")
+            debug call ThrowError(not isCollection, "List", "last", "thistype", this, "Attempted To Read Invalid List.")
             return p_last
         endmethod
         
@@ -104,24 +106,33 @@ library NxListT /* v1.0.0.1
             return 0
         endmethod
         
-        private static method allocateNode takes nothing returns thistype
-            local thistype this = thistype(0).p_next
+        private static method allocateCollection takes nothing returns thistype
+            local thistype this = thistype(0).p_first
             
             if (0 == this) then
-                set this = nodeCount + 1
-                set nodeCount = this
+                debug call ThrowError(collectionCount == 8191, "List", "allocateCollection", "thistype", 0, "Overflow.")
+                
+                set this = collectionCount + 1
+                set collectionCount = this
             else
-                set thistype(0).p_next = p_next
+                set thistype(0).p_first = p_first
             endif
             
             return this
         endmethod
         
-        method push takes nothing returns thistype
-            local thistype node = allocateNode()
+        static method create takes nothing returns thistype
+            local thistype this = allocateCollection()
             
-            debug call ThrowError(this == 0,        "NxList", "push", "thistype", this, "Attempted To Push On To Null List.")
-            debug call ThrowError(not isCollection, "NxList", "push", "thistype", this, "Attempted To Push On To Invalid List.")
+            debug set isCollection = true
+            
+            set p_first = 0
+            
+            return this
+        endmethod
+        method push takes thistype node returns nothing
+            debug call ThrowError(this == 0,        "List", "push", "thistype", this, "Attempted To Push On To Null List.")
+            debug call ThrowError(not isCollection, "List", "push", "thistype", this, "Attempted To Push On To Invalid List.")
             
             debug set node.isNode = true
             
@@ -138,14 +149,10 @@ library NxListT /* v1.0.0.1
             endif
             
             set node.p_prev = 0
-            
-            return node
         endmethod
-        method enqueue takes nothing returns thistype
-            local thistype node = allocateNode()
-            
-            debug call ThrowError(this == 0,        "NxList", "enqueue", "thistype", this, "Attempted To Enqueue On To Null List.")
-            debug call ThrowError(not isCollection, "NxList", "enqueue", "thistype", this, "Attempted To Enqueue On To Invalid List.")
+        method enqueue takes thistype node returns nothing
+            debug call ThrowError(this == 0,        "List", "enqueue", "thistype", this, "Attempted To Enqueue On To Null List.")
+            debug call ThrowError(not isCollection, "List", "enqueue", "thistype", this, "Attempted To Enqueue On To Invalid List.")
             
             debug set node.isNode = true
             
@@ -162,15 +169,13 @@ library NxListT /* v1.0.0.1
             endif
             
             set node.p_next = 0
-            
-            return node
         endmethod
         method pop takes nothing returns nothing
             local thistype node = p_first
             
-            debug call ThrowError(this == 0,        "NxList", "pop", "thistype", this, "Attempted To Pop Null List.")
-            debug call ThrowError(not isCollection, "NxList", "pop", "thistype", this, "Attempted To Pop Invalid List.")
-            debug call ThrowError(node == 0,        "NxList", "pop", "thistype", this, "Attempted To Pop Empty List.")
+            debug call ThrowError(this == 0,        "List", "pop", "thistype", this, "Attempted To Pop Null List.")
+            debug call ThrowError(not isCollection, "List", "pop", "thistype", this, "Attempted To Pop Invalid List.")
+            debug call ThrowError(node == 0,        "List", "pop", "thistype", this, "Attempted To Pop Empty List.")
             
             debug set node.isNode = false
             
@@ -182,16 +187,13 @@ library NxListT /* v1.0.0.1
             else
                 set p_first.p_prev = 0
             endif
-            
-            set node.p_next = thistype(0).p_next
-            set thistype(0).p_next = node
         endmethod
         method dequeue takes nothing returns nothing
             local thistype node = p_last
             
-            debug call ThrowError(this == 0,        "NxList", "dequeue", "thistype", this, "Attempted To Dequeue Null List.")
-            debug call ThrowError(not isCollection, "NxList", "dequeue", "thistype", this, "Attempted To Dequeue Invalid List.")
-            debug call ThrowError(node == 0,        "NxList", "dequeue", "thistype", this, "Attempted To Dequeue Empty List.")
+            debug call ThrowError(this == 0,        "List", "dequeue", "thistype", this, "Attempted To Dequeue Null List.")
+            debug call ThrowError(not isCollection, "List", "dequeue", "thistype", this, "Attempted To Dequeue Invalid List.")
+            debug call ThrowError(node == 0,        "List", "dequeue", "thistype", this, "Attempted To Dequeue Empty List.")
             
             debug set node.isNode = false
             
@@ -203,16 +205,13 @@ library NxListT /* v1.0.0.1
             else
                 set p_last.p_next = 0
             endif
-            
-            set node.p_next = thistype(0).p_next
-            set thistype(0).p_next = node
         endmethod
         method remove takes nothing returns nothing
             local thistype node = this
             set this = node.p_list
             
-            debug call ThrowError(node == 0,        "NxList", "remove", "thistype", this, "Attempted To Remove Null Node.")
-            debug call ThrowError(not node.isNode,  "NxList", "remove", "thistype", this, "Attempted To Remove Invalid Node (" + I2S(node) + ").")
+            debug call ThrowError(node == 0,        "List", "remove", "thistype", this, "Attempted To Remove Null Node.")
+            debug call ThrowError(not node.isNode,  "List", "remove", "thistype", this, "Attempted To Remove Invalid Node (" + I2S(node) + ").")
             
             debug set node.isNode = false
             
@@ -228,23 +227,12 @@ library NxListT /* v1.0.0.1
             else
                 set node.p_next.p_prev = node.p_prev
             endif
-            
-            set node.p_next = thistype(0).p_next
-            set thistype(0).p_next = node
         endmethod
         method clear takes nothing returns nothing
             debug local thistype node = p_first
         
-            debug call ThrowError(this == 0,            "NxList", "clear", "thistype", this, "Attempted To Clear Null List.")
-            
-            debug if (not isCollection) then
-                debug set isCollection = true
-                
-                debug set p_first = 0
-                debug set p_last = 0
-                
-                debug return
-            debug endif
+            debug call ThrowError(this == 0,            "List", "clear", "thistype", this, "Attempted To Clear Null List.")
+            debug call ThrowError(not isCollection,     "List", "clear", "thistype", this, "Attempted To Clear Invalid List.")
             
             static if DEBUG_MODE then
                 loop
@@ -254,23 +242,23 @@ library NxListT /* v1.0.0.1
                 endloop
             endif
             
-            if (p_first == 0) then
-                return
-            endif
-            
-            set p_last.p_next = thistype(0).p_next
-            set thistype(0).p_next = p_first
-            
             set p_first = 0
             set p_last = 0
         endmethod
         method destroy takes nothing returns nothing
-            debug call ThrowError(this == 0,            "NxList", "destroy", "thistype", this, "Attempted To Destroy Null List.")
-            debug call ThrowError(not isCollection,     "NxList", "destroy", "thistype", this, "Attempted To Destroy Invalid List.")
+            debug call ThrowError(this == 0,            "List", "destroy", "thistype", this, "Attempted To Destroy Null List.")
+            debug call ThrowError(not isCollection,     "List", "destroy", "thistype", this, "Attempted To Destroy Invalid List.")
             
-            call clear()
+            static if DEBUG_MODE then
+                debug call clear()
+                
+                debug set isCollection = false
+            else
+				set p_last = 0
+            endif
             
-            debug set isCollection = false
+            set p_first = thistype(0).p_first
+            set thistype(0).p_first = this
         endmethod
         
         private static method onInit takes nothing returns nothing
@@ -329,9 +317,15 @@ library NxListT /* v1.0.0.1
                 loop
                     exitwhen integer(start) > integer(end)
                     if (integer(start) + 500 > integer(end)) then
+                        if (memory != null) then
+                            set memory = memory + ", "
+                        endif
                         set memory = memory + checkRegion2(start, end)
                         set start = end + 1
                     else
+                        if (memory != null) then
+                            set memory = memory + ", "
+                        endif
                         set memory = memory + checkRegion2(start, start + 500)
                         set start = start + 501
                     endif

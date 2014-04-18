@@ -1,4 +1,4 @@
-library UniqueNxListT /* v1.0.0.0
+library UniqueNxListT /* v1.0.0.1
 ************************************************************************************
 *
 *   */uses/*
@@ -243,8 +243,10 @@ library UniqueNxListT /* v1.0.0.0
         endmethod
 		
 		private static method onInit takes nothing returns nothing
-            //! runtextmacro INITIALIZE_TABLE_FIELD("isNode")
-            //! runtextmacro INITIALIZE_TABLE_FIELD("isCollection")
+			static if DEBUG_MODE then
+				//! runtextmacro INITIALIZE_TABLE_FIELD("isNode")
+				//! runtextmacro INITIALIZE_TABLE_FIELD("isCollection")
+			endif
             //! runtextmacro INITIALIZE_TABLE_FIELD("p_list")
             //! runtextmacro INITIALIZE_TABLE_FIELD("p_next")
             //! runtextmacro INITIALIZE_TABLE_FIELD("p_prev")
@@ -296,15 +298,9 @@ library UniqueNxListT /* v1.0.0.0
                 loop
                     exitwhen integer(start) > integer(end)
                     if (integer(start) + 500 > integer(end)) then
-                        if (memory != null) then
-                            set memory = memory + ", "
-                        endif
                         set memory = memory + checkRegion2(start, end)
                         set start = end + 1
                     else
-                        if (memory != null) then
-                            set memory = memory + ", "
-                        endif
                         set memory = memory + checkRegion2(start, start + 500)
                         set start = start + 501
                     endif

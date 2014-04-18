@@ -1,4 +1,4 @@
-library ListT /* v1.0.0.2
+library ListT /* v1.0.0.3
 ************************************************************************************
 *
 *   */uses/*
@@ -345,8 +345,10 @@ library ListT /* v1.0.0.2
         endmethod
         
         private static method onInit takes nothing returns nothing
-            set p_isNode = Table.create()
-            set p_isCollection = Table.create()
+			static if DEBUG_MODE then
+				set p_isNode = Table.create()
+				set p_isCollection = Table.create()
+			endif
             set p_list = Table.create()
             set p_next = Table.create()
             set p_prev = Table.create()
