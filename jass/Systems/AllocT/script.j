@@ -1,4 +1,4 @@
-library AllocT /* v1.0.1.1
+library AllocT /* v1.0.1.2
 *************************************************************************************
 *
 *	*/ uses /*
@@ -13,7 +13,7 @@ library AllocT /* v1.0.1.1
 *		Fields
 *		-------------------------
 *
-*			debug boolean isAllocated
+*			readonly boolean isAllocated
 *
 *		Methods
 *		-------------------------
@@ -29,9 +29,9 @@ library AllocT /* v1.0.1.1
 		private static Table recycler
 		private static integer instanceCount = 0
 		
-		debug method operator isAllocated takes nothing returns boolean
-			debug return recycler[this] == -1
-		debug endmethod
+		method operator isAllocated takes nothing returns boolean
+			return recycler[this] == -1
+		endmethod
 		
 		static method allocate takes nothing returns thistype
 			local thistype this = recycler[0]

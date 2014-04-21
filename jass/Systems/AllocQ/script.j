@@ -1,4 +1,4 @@
-library AllocQ /* v1.0.0.1
+library AllocQ /* v1.0.0.2
 *************************************************************************************
 *
 *	*/ uses /*
@@ -14,7 +14,7 @@ library AllocQ /* v1.0.0.1
 *		Fields
 *		-------------------------
 *
-*			debug boolean isAllocated
+*			readonly boolean isAllocated
 *
 *		Methods
 *		-------------------------
@@ -32,9 +32,9 @@ library AllocQ /* v1.0.0.1
 		
 		debug private static integer allocateCount = 0
 		
-		debug method operator isAllocated takes nothing returns boolean
-			debug return recycler[this] == -1
-		debug endmethod
+		method operator isAllocated takes nothing returns boolean
+			return recycler[this] == -1
+		endmethod
 		
 		static method allocate takes nothing returns thistype
 			local thistype this = recycler[0]
