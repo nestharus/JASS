@@ -68,7 +68,19 @@ library_once TempCatalog uses Catalog
         endmethod
     endstruct
 endlibrary
-library GroupVersionCatalog uses TempCatalog
+library_once IntTree2 uses AVL
+    struct IntTree2 extends array
+        private method lessThan takes thistype val returns boolean
+            return integer(this)<integer(val)
+        endmethod
+        private method greaterThan takes thistype val returns boolean
+            return integer(this)>integer(val)
+        endmethod
+        
+        implement AVL
+    endstruct
+endlibrary
+library GroupVersionCatalog uses TempCatalog, IntTree2
     private module GroupFilterInit
         private static method onInit takes nothing returns nothing
             set catalogTable = Table.create()
@@ -196,36 +208,39 @@ library GroupVersionCatalog uses TempCatalog
     private struct VersionFilter extends array
         private static integer instanceCount = 0
         
-        private Table groupFilterTable
-        private integer ver
-        private Table prev
+        private GroupFilter filter
+        private IntTree2 versionTree
         
-        private method createVersion takes integer ver returns nothing
-            local integer lastVersion = prev[0]
-            local GroupFilter filter = GroupFilter.create()
-        
-            set groupFilterTable[ver] = filter
+        private method createVersion takes nothing returns nothing
+            set filter = GroupFilter.create()
             
-            if (lastVersion != 0) then
-                call filter.inherit(groupFilterTable[lastVersion])
+            if (not IntTree2(this).prev.head) then
+                call filter.inherit(thistype(IntTree2(this).prev).filter)
             endif
-            
-            set prev[ver] = lastVersion
-            set prev[0] = ver
-            
-            set this.ver = ver
         endmethod
         
-        method getGroupFilter takes integer ver returns GroupFilter
-            if (this.ver < ver) then
-                call createVersion(ver)
+        method findGroupFilter takes integer ver returns GroupFilter
+            set this = versionTree.searchClose(ver, true)
+            
+            if (this == 0) then
+                return TempCatalog.create()
             endif
             
-            return groupFilterTable[ver]
+            return filter
+        endmethod
+        
+        method getGroupFilter takes thistype ver returns GroupFilter
+            set ver = versionTree.addUnique(ver)
+            
+            if (ver.filter == 0) then
+                call ver.createVersion()
+            endif
+            
+            return ver.filter
         endmethod
         
         method get takes integer ver, integer groupId returns Catalog
-            return getGroupFilter(ver).get(groupId)
+            return findGroupFilter(ver).get(groupId)
         endmethod
         
         method getCatalog takes integer ver, integer groupId returns Catalog
@@ -236,11 +251,7 @@ library GroupVersionCatalog uses TempCatalog
             local thistype this = instanceCount + 1
             set instanceCount = this
             
-            set groupFilterTable = Table.create()
-            
-            set prev = Table.create()
-            
-            set ver = 0
+            set versionTree = IntTree2.create()
             
             return this
         endmethod

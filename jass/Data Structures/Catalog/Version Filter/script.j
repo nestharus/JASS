@@ -50,47 +50,58 @@ library_once TempCatalog uses Catalog
         endmethod
     endstruct
 endlibrary
-library VersionCatalog uses TempCatalog
+library_once IntTree2 uses AVL
+    struct IntTree2 extends array
+        private method lessThan takes thistype val returns boolean
+            return integer(this)<integer(val)
+        endmethod
+        private method greaterThan takes thistype val returns boolean
+            return integer(this)>integer(val)
+        endmethod
+        
+        implement AVL
+    endstruct
+endlibrary
+library VersionCatalog uses TempCatalog, IntTree2
     private struct VersionFilter extends array
         private static integer instanceCount = 0
         
-        private Table catalogTable
-        private integer ver
-        private Table prev
+        private Catalog catalog
+        private IntTree2 versionTree
         
-        private method createVersion takes integer ver returns nothing
-            local integer lastVersion = prev[0]
-            local Catalog catalog = Catalog.create()
+        private method createVersion takes nothing returns nothing
+            set catalog = Catalog.create()
             
-            set catalogTable[ver] = catalog
-            
-            if (lastVersion != 0) then
-                call catalog.addCatalog(catalogTable[lastVersion])
+            if (not IntTree2(this).prev.head) then
+                call catalog.addCatalog(thistype(IntTree2(this).prev).catalog)
             endif
-            
-            set prev[ver] = lastVersion
-            set prev[0] = ver
-            
-            set this.ver = ver
         endmethod
         
         method get takes integer ver returns Catalog
-            if (this.ver < ver) then
-                call createVersion(ver)
+            set this = versionTree.searchClose(ver, true)
+            
+            if (this == 0) then
+                return TempCatalog.create()
             endif
             
-            return catalogTable[ver]
+            return catalog
+        endmethod
+        
+        method getCatalog takes thistype ver returns Catalog
+            set ver = versionTree.addUnique(ver)
+            
+            if (ver.catalog == 0) then
+                call ver.createVersion()
+            endif
+            
+            return ver.catalog
         endmethod
         
         static method create takes nothing returns thistype
             local thistype this = instanceCount + 1
             set instanceCount = this
             
-            set catalogTable = Table.create()
-            
-            set prev = Table.create()
-            
-            set ver = 0
+            set versionTree = IntTree2.create()
             
             return this
         endmethod
@@ -102,7 +113,7 @@ library VersionCatalog uses TempCatalog
         endmethod
     
         method add takes integer rawId, integer ver returns nothing
-            call VersionFilter(this).get(ver).add(rawId)
+            call VersionFilter(this).getCatalog(ver).add(rawId)
         endmethod
         
         static method create takes nothing returns thistype

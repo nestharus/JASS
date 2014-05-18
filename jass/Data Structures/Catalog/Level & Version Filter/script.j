@@ -62,6 +62,18 @@ library_once IntTree uses AVL
         implement AVL
     endstruct
 endlibrary
+library_once IntTree2 uses AVL
+    struct IntTree2 extends array
+        private method lessThan takes thistype val returns boolean
+            return integer(this)<integer(val)
+        endmethod
+        private method greaterThan takes thistype val returns boolean
+            return integer(this)>integer(val)
+        endmethod
+        
+        implement AVL
+    endstruct
+endlibrary
 library_once LevelFilter uses IntTree, Table, Catalog, TempCatalog
     struct LevelFilter extends array
         private Table catalogTable
@@ -116,40 +128,37 @@ library_once LevelFilter uses IntTree, Table, Catalog, TempCatalog
         endmethod
     endstruct
 endlibrary
-library LevelVersionCatalog uses LevelFilter, TempCatalog
+library LevelVersionCatalog uses LevelFilter, TempCatalog, IntTree2
     private struct VersionFilter extends array
         private static integer instanceCount = 0
         
-        private Table levelFilterTable
-        private integer ver
-        private Table prev
+        private LevelFilter filter
+        private IntTree2 versionTree
         
-        private method createVersion takes integer ver returns nothing
-            set levelFilterTable[ver] = LevelFilter.create()
+        method getLevelFilter takes thistype ver returns LevelFilter
+            set ver = versionTree.addUnique(ver)
             
-            set prev[ver] = prev[0]
-            set prev[0] = ver
-            
-            set this.ver = ver
-        endmethod
-        
-        method getLevelFilter takes integer ver returns LevelFilter
-            if (this.ver < ver) then
-                call createVersion(ver)
+            if (ver.filter == 0) then
+                set ver.filter = LevelFilter.create()
             endif
             
-            return levelFilterTable[ver]
+            return ver.filter
         endmethod
         
         method get takes integer ver, integer minLevel, integer maxLevel returns Catalog
             local Catalog catalog = TempCatalog.create()
+            local IntTree2 node = versionTree.searchClose(ver, true)
+            
+            if (node == 0) then
+                return catalog
+            endif
             
             loop
-                exitwhen ver == 0
+                exitwhen node.head
                 
-                call catalog.addCatalog(getLevelFilter(ver).get(minLevel, maxLevel))
+                call catalog.addCatalog(thistype(node).filter.get(minLevel, maxLevel))
                 
-                set ver = prev[ver]
+                set node = node.prev
             endloop
             
             return catalog
@@ -163,11 +172,7 @@ library LevelVersionCatalog uses LevelFilter, TempCatalog
             local thistype this = instanceCount + 1
             set instanceCount = this
             
-            set levelFilterTable = Table.create()
-            
-            set prev = Table.create()
-            
-            set ver = 0
+            set versionTree = IntTree2.create()
             
             return this
         endmethod
