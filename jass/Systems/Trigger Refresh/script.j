@@ -1,4 +1,4 @@
-library TriggerRefresh /* v1.0.2.1
+library TriggerRefresh /* v1.0.3.0
 *************************************************************************************
 *
 *   Optimal trigger refreshing for unit events. Used in such things as Damage Detection
@@ -75,7 +75,7 @@ endlibrary
             
             private method registerUnit takes UnitIndex whichUnit returns boolean
                 if (activeUnits < $TRIGGER_SIZE$) then
-                    call TriggerRegisterUnitEvent(trigger, GetUnitById(whichUnit), $TRIGGER_EVENT$)
+                    call TriggerRegisterUnitEvent(trigger, whichUnit.unit, $TRIGGER_EVENT$)
                     set activeUnits = activeUnits + 1
                     
                     return true
@@ -107,7 +107,7 @@ endlibrary
                 set current.prev.next = 0
                 loop
                     exitwhen 0 == current
-                    call TriggerRegisterUnitEvent(trigger, GetUnitById(current), $TRIGGER_EVENT$)
+                    call TriggerRegisterUnitEvent(trigger, UnitIndex(current).unit, $TRIGGER_EVENT$)
                     set current = current.next
                 endloop
                 set first.prev.next = current
@@ -303,13 +303,13 @@ endlibrary
         
         private struct TriggerRefreshInit extends array
             private static method onIndex takes nothing returns boolean
-                call TriggerHeap.add(GetIndexedUnitId())
+                call TriggerHeap.add(UnitIndexer.eventIndex)
                 
                 return false
             endmethod
             
             private static method onDeindex takes nothing returns boolean
-                call TriggerHeap.remove(GetIndexedUnitId())
+                call TriggerHeap.remove(UnitIndexer.eventIndex)
             
                 return false
             endmethod
@@ -317,8 +317,8 @@ endlibrary
             private static method init takes code c returns nothing
                 set condition = Condition(c)
                 
-                call RegisterUnitIndexEvent(Condition(function thistype.onIndex), UnitIndexer.INDEX)
-                call RegisterUnitIndexEvent(Condition(function thistype.onDeindex), UnitIndexer.DEINDEX)
+				call UnitIndexer.GlobalEvent.ON_INDEX.register(Condition(function thistype.onIndex))
+				call UnitIndexer.GlobalEvent.ON_DEINDEX.register(Condition(function thistype.onDeindex))
             endmethod
             
             implement TriggerRefreshInitModule
