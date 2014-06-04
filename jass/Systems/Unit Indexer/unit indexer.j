@@ -46,8 +46,8 @@ private struct UnitIndexerTriggerGlobal extends array
 	readonly static Trigger			ON_DEINDEX
 	
 	private static method init takes nothing returns nothing
-		set ON_INDEX = Trigger.create()
-		set ON_DEINDEX = Trigger.create()
+		set ON_INDEX = Trigger.create(false)
+		set ON_DEINDEX = Trigger.create(true)
 	endmethod
 	
 	implement Init
@@ -56,18 +56,14 @@ endstruct
 private keyword ON_DEINDEX_MAIN
 private struct UnitIndexerTrigger extends array
 	readonly Trigger ON_DEINDEX
-	readonly Trigger ON_DEINDEX_MAIN
 	
 	method createDeindex takes nothing returns nothing
-		set ON_DEINDEX = Trigger.create()
-		set ON_DEINDEX_MAIN = Trigger.create()
+		set ON_DEINDEX = Trigger.create(true)
 		
-		call ON_DEINDEX_MAIN.reference(ON_DEINDEX)
-		call ON_DEINDEX_MAIN.reference(UnitIndexerTriggerGlobal.ON_DEINDEX)
+		call ON_DEINDEX.reference(UnitIndexerTriggerGlobal.ON_DEINDEX)
 	endmethod
 	
 	method destroyDeindex takes nothing returns nothing
-		call ON_DEINDEX_MAIN.destroy()
 		call ON_DEINDEX.destroy()
 	endmethod
 endstruct
@@ -128,7 +124,7 @@ struct UnitIndexer extends array
 		if (GetUnitAbilityLevel(GetTriggerUnit(), ABILITIES_UNIT_INDEXER) == 0) then
 			call PreGameEvent.removeUnitIndex(index)
 			
-			call fire(thistype(index).Event.ON_DEINDEX_MAIN, index)
+			call fire(thistype(index).Event.ON_DEINDEX, index)
 			
 			call thistype(index).Event.destroyDeindex()
 			

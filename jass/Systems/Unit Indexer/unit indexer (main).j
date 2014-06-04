@@ -1,4 +1,4 @@
-library UnitIndexer /* v5.2.0.0
+library UnitIndexer /* v5.3.0.0
 ************************************************************************************
 *
 *	*/ uses /*
@@ -30,9 +30,14 @@ library UnitIndexer /* v5.2.0.0
 *				Examples:	unitIndex.indexer.Event.ON_DEINDEX.reference(yourTrigger)
 *							unitIndex.indexer.Event.ON_DEINDEX.register(yourCode)
 *
+*			readonly Trigger Event.ON_DEINDEX
+*				-	this is a local event that runs whenever a specific unit is deindexed
+*
+*				Examples:	unitIndex.indexer.Event.ON_DEINDEX.reference(yourTrigger)
+*							unitIndex.indexer.Event.ON_DEINDEX.register(yourCode)
+*
 *			readonly static Trigger GlobalEvent.ON_DEINDEX
 *				-	this is ON_DEINDEX, but global
-*				-	this runs after unit specific deindex events
 *
 *				Examples:	UnitIndexer.GlobalEvent.ON_DEINDEX.reference(yourTrigger)
 *							UnitIndexer.GlobalEvent.ON_DEINDEX.register(yourCode)
@@ -269,81 +274,79 @@ library UnitIndexer /* v5.2.0.0
 	//! runtextmacro UNIT_INDEXER_UNIT_INDEXER()
 	
 	module GlobalUnitIndex
-		static method operator [] takes unit whichUnit returns thistype
-			return p_UnitIndex[whichUnit]
-		endmethod
-		method operator unit takes nothing returns unit
-			return p_UnitIndex(this).unit
-		endmethod
-		method operator unitIndexer takes nothing returns UnitIndexer
-			return p_UnitIndex(this).indexer
-		endmethod
-		method operator isUnitIndexed takes nothing returns boolean
-			return p_UnitIndex(this).isAllocated
-		endmethod
-		static method exists takes unit whichUnit returns boolean
-			return p_UnitIndex.exists(whichUnit)
-		endmethod
-		static method isDeindexing takes unit whichUnit returns boolean
-			return p_UnitIndex.isDeindexing(whichUnit)
-		endmethod
-	
-		static if not thistype.UNIT_INDEX then
-			static if not thistype.UNIT_INDEX_EX then
-				static constant boolean GLOBAL_UNIT_INDEX = true
-			endif
-		elseif not thistype.UNIT_INDEX_EX then
+		static if thistype.UNIT_INDEX then
+		elseif thistype.UNIT_INDEX_EX then
+		else
 			static constant boolean GLOBAL_UNIT_INDEX = true
-		endif
-		
-		static if thistype.GLOBAL_UNIT_INDEX then
-			static if thistype.onUnitIndex.exists then
-				private static method onIndexEvent takes nothing returns boolean
-					call thistype(UnitIndexer.eventIndex).onUnitIndex()
-				
-					return false
-				endmethod
-			endif
-			static if thistype.onUnitDeindex.exists then
-				private static method onDeindexEvent takes nothing returns boolean
-					call thistype(UnitIndexer.eventIndex).onUnitDeindex()
+			
+			static method operator [] takes unit whichUnit returns thistype
+				return p_UnitIndex[whichUnit]
+			endmethod
+			method operator unit takes nothing returns unit
+				return p_UnitIndex(this).unit
+			endmethod
+			method operator unitIndexer takes nothing returns UnitIndexer
+				return p_UnitIndex(this).indexer
+			endmethod
+			method operator isUnitIndexed takes nothing returns boolean
+				return p_UnitIndex(this).isAllocated
+			endmethod
+			static method exists takes unit whichUnit returns boolean
+				return p_UnitIndex.exists(whichUnit)
+			endmethod
+			static method isDeindexing takes unit whichUnit returns boolean
+				return p_UnitIndex.isDeindexing(whichUnit)
+			endmethod
+			
+			static if thistype.GLOBAL_UNIT_INDEX then
+				static if thistype.onUnitIndex.exists then
+					private static method onIndexEvent takes nothing returns boolean
+						call thistype(UnitIndexer.eventIndex).onUnitIndex()
 					
-					return false
-				endmethod
-			endif
-			
-			static if thistype.onUnitIndex.exists then
-				private static method onInit takes nothing returns nothing
-			elseif thistype.onUnitDeindex.exists then
-				private static method onInit takes nothing returns nothing
-			endif
-			
-			static if thistype.onUnitIndex.exists then
-				call UnitIndexer.GlobalEvent.ON_INDEX.register(Condition(function thistype.onIndexEvent))
-			endif
-			
-			static if thistype.onUnitDeindex.exists then
-				call UnitIndexer.GlobalEvent.ON_DEINDEX.register(Condition(function thistype.onDeindexEvent))
-			endif
-			
-			static if thistype.onUnitIndex.exists then
-				endmethod
-			elseif thistype.onUnitDeindex.exists then
-				endmethod
+						return false
+					endmethod
+				endif
+				static if thistype.onUnitDeindex.exists then
+					private static method onDeindexEvent takes nothing returns boolean
+						call thistype(UnitIndexer.eventIndex).onUnitDeindex()
+						
+						return false
+					endmethod
+				endif
+				
+				static if thistype.onUnitIndex.exists then
+					private static method onInit takes nothing returns nothing
+				elseif thistype.onUnitDeindex.exists then
+					private static method onInit takes nothing returns nothing
+				endif
+				
+				static if thistype.onUnitIndex.exists then
+					call UnitIndexer.GlobalEvent.ON_INDEX.register(Condition(function thistype.onIndexEvent))
+				endif
+				
+				static if thistype.onUnitDeindex.exists then
+					call UnitIndexer.GlobalEvent.ON_DEINDEX.register(Condition(function thistype.onDeindexEvent))
+				endif
+				
+				static if thistype.onUnitIndex.exists then
+					endmethod
+				elseif thistype.onUnitDeindex.exists then
+					endmethod
+				endif
 			endif
 		endif
 	endmodule
 	
 	module UnitIndex
-		static if not thistype.UNIT_INDEX_EX then
-			static if not thistype.GLOBAL_UNIT_INDEX then
-				static constant boolean UNIT_INDEX = true
-			endif
-		elseif not thistype.GLOBAL_UNIT_INDEX then
+		static if thistype.GLOBAL_UNIT_INDEX then
+			private static method error takes nothing returns nothing
+				A module requires UnitIndex to operate correctly.
+				This struct is currently implementing GlobalUnitIndex.
+			endmethod
+		elseif thistype.UNIT_INDEX_EX then
+		else
 			static constant boolean UNIT_INDEX = true
-		endif
-		
-		static if thistype.UNIT_INDEX then
+			
 			/*
 			*	[] is included because the struct automatically overrides it
 			*
@@ -565,22 +568,17 @@ library UnitIndexer /* v5.2.0.0
 		endmethod
 	endstruct
 	module UnitIndexEx
-		static if not thistype.UNIT_INDEX then
-			static if not thistype.GLOBAL_UNIT_INDEX then
-				static constant boolean UNIT_INDEX_EX = true
-			endif
-		elseif not thistype.GLOBAL_UNIT_INDEX then
-			static constant boolean UNIT_INDEX_EX = true
-		endif
-		
-		static if not thistype.UNIT_INDEX_EX then
+		static if thistype.GLOBAL_UNIT_INDEX then
+			private static method error takes nothing returns nothing
+				A module requires UnitIndexEx to operate correctly.
+				This struct is currently implementing GlobalUnitIndex.
+			endmethod
+		elseif thistype.UNIT_INDEX then
 			private static method error takes nothing returns nothing
 				A module requires UnitIndexEx to operate correctly.
 				This struct is currently implementing UnitIndex.
 			endmethod
-		endif
-	
-		static thistype.UNIT_INDEX_EX then
+		else
 			static constant boolean UNIT_INDEX_EX = true
 			
 			private static UnitIndex delegate unitIndex = 0
@@ -731,10 +729,10 @@ library UnitIndexer /* v5.2.0.0
 					if (thistype(UnitIndexer.eventIndex).onUnitIndex()) then
 						set thistype(UnitIndexer.eventIndex).isUnitIndexed = true
 						
-						set thistype(UnitIndexer.eventIndex).ON_DEINDEX = Trigger.create()
+						set thistype(UnitIndexer.eventIndex).ON_DEINDEX = Trigger.create(true)
+						call thistype(UnitIndexer.eventIndex).ON_DEINDEX.register(onDeindexExpression)
+
 						call UnitIndexer(UnitIndexer.eventIndex).Event.ON_DEINDEX.reference(thistype(UnitIndexer.eventIndex).ON_DEINDEX)
-						
-						call UnitIndexer(UnitIndexer.eventIndex).Event.ON_DEINDEX.register(onDeindexExpression)
 						
 						if (not PreGameEvent.isGameLoaded) then
 							call UnitIndexList(ON_INDEX).add(UnitIndexer.eventIndex)
@@ -754,7 +752,7 @@ library UnitIndexer /* v5.2.0.0
 			endmethod
 			
 			private static method onInit takes nothing returns nothing
-				set ON_INDEX = Trigger.create()
+				set ON_INDEX = Trigger.create(false)
 				
 				static if thistype.onUnitIndex.exists then
 					set onIndexExpression = Condition(function thistype.onIndexEvent)
@@ -766,13 +764,12 @@ library UnitIndexer /* v5.2.0.0
 					
 					set entryPoint = UnitIndexer.GlobalEvent.ON_INDEX.register(Condition(function thistype.onIndexEvent))
 				else
-					set ON_DEINDEX = Trigger.create()
-					call UnitIndexer.GlobalEvent.ON_DEINDEX.reference(ON_DEINDEX)
-				
+					set ON_DEINDEX = Trigger.create(true)
 					static if thistype.onUnitDeindex.exists then
-						call UnitIndexer.GlobalEvent.ON_DEINDEX.register(Condition(function thistype.onDeindexEvent))
+						call ON_DEINDEX.register(Condition(function thistype.onDeindexEvent))
 					endif
 					
+					call UnitIndexer.GlobalEvent.ON_DEINDEX.reference(ON_DEINDEX)
 					call UnitIndexer.GlobalEvent.ON_INDEX.reference(ON_INDEX)
 				endif
 			endmethod
@@ -915,6 +912,11 @@ library UnitIndexer /* v5.2.0.0
 					endmethod
 				endif
 			endif
+		elseif thistype.GLOBAL_UNIT_INDEX then
+			private static method error takes nothing returns nothing
+				A module requires either UnitIndex or UnitIndexEx to operate correctly.
+				This struct is currently implementing GlobalUnitIndex.
+			endmethod
 		else
 			/*
 			*	Here, UnitIndexEx is either implemented or nothing is implemented
