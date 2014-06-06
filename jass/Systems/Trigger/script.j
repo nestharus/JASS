@@ -1,4 +1,4 @@
-library Trigger /* v1.1.0.0
+library Trigger /* v1.1.0.1
 ************************************************************************************
 *
 *   */ uses /*
@@ -486,99 +486,233 @@ library Trigger /* v1.1.0.0
             
             return this
         endmethod
-        method destroy takes nothing returns nothing
-            debug call ThrowError(this == 0,        "Trigger", "destroy", "Trigger", this, "Attempted To Destroy Null Trigger.")
-            debug call ThrowError(not isTrigger,    "Trigger", "destroy", "Trigger", this, "Attempted To Destroy Invalid Trigger.")
-            
-            debug set isTrigger = false
-        
-            call TriggerReferenceList(this).purge()
-			call TriggerConditionDataCollection(this).destroy()
-            
-            if (TriggerMemory(this).tc != null) then
-                call TriggerRemoveCondition(TriggerMemory(this).trig, TriggerMemory(this).tc)
-            endif
-			call TriggerMemory(this).tc_clear()
-            call DestroyTrigger(TriggerMemory(this).trig)
-			call TriggerMemory(this).trig_clear()
-            
-            call TriggerMemory(this).expression.destroy()
-            
-            call TriggerAllocator(this).deallocate()
-        endmethod
-
-        method register takes boolexpr expression returns TriggerCondition
-            debug call ThrowError(this == 0,            "Trigger", "register", "Trigger", this, "Attempted To Register To Null Trigger.")
-            debug call ThrowError(not isTrigger,        "Trigger", "register", "Trigger", this, "Attempted To Register To Invalid Trigger.")
-        
-            /*
-            *   Register the expression
-            */
-            return TriggerConditionData.create(this, expression)
-        endmethod
-        
-        method clear takes nothing returns nothing
-			local TriggerConditionDataCollection node = TriggerConditionDataCollection(this).first
 		
-            debug call ThrowError(this == 0,        "Trigger", "clear", "Trigger", this, "Attempted To Clear Null Trigger.")
-            debug call ThrowError(not isTrigger,    "Trigger", "clear", "Trigger", this, "Attempted To Clear Invalid Trigger.")
-			
-			loop
-				exitwhen node == 0
+		static if DEBUG_MODE then
+			method destroy takes nothing returns nothing
+				call destroy_p()
+			endmethod
+		
+			private method destroy_p takes nothing returns nothing
+				debug call ThrowError(this == 0,        "Trigger", "destroy", "Trigger", this, "Attempted To Destroy Null Trigger.")
+				debug call ThrowError(not isTrigger,    "Trigger", "destroy", "Trigger", this, "Attempted To Destroy Invalid Trigger.")
 				
-				call BooleanExpression(node).unregister()
+				debug set isTrigger = false
+			
+				call TriggerReferenceList(this).purge()
+				call TriggerConditionDataCollection(this).destroy()
 				
-				set node = node.next
-			endloop
-			
-			call TriggerConditionDataCollection(this).clear()
-			
-            call TriggerMemory(this).updateTrigger()
-            call TriggerReferencedList(this).updateExpression()
-        endmethod
-        
-        method clearReferences takes nothing returns nothing
-            debug call ThrowError(this == 0,        "Trigger", "clearReferences", "Trigger", this, "Attempted To Clear References Of Null Trigger.")
-            debug call ThrowError(not isTrigger,    "Trigger", "clearReferences", "Trigger", this, "Attempted To Clear References Of Invalid Trigger.")
-            
-            call TriggerReferenceList(this).clearReferences()
-            
-            call TriggerMemory(this).updateTrigger()
-            call TriggerReferencedList(this).updateExpression()
-        endmethod
-        
-        method clearBackReferences takes nothing returns nothing
-            debug call ThrowError(this == 0,        "Trigger", "clearReferences", "Trigger", this, "Attempted To Clear Back References Of Null Trigger.")
-            debug call ThrowError(not isTrigger,    "Trigger", "clearReferences", "Trigger", this, "Attempted To Clear Back References Of Invalid Trigger.")
-            
-            call TriggerReferencedList(this).clearReferences()
-        endmethod
-        
-        method reference takes thistype trig returns TriggerReference
-            debug call ThrowError(this == 0,            "Trigger", "reference", "Trigger", this, "Attempted To Make Null Trigger Reference Trigger.")
-            debug call ThrowError(not isTrigger,        "Trigger", "reference", "Trigger", this, "Attempted To Make Invalid Trigger Reference Trigger.")
-            debug call ThrowError(trig == 0,            "Trigger", "reference", "Trigger", this, "Attempted To Reference Null Trigger (" + I2S(trig) + ").")
-            debug call ThrowError(not trig.isTrigger,   "Trigger", "reference", "Trigger", this, "Attempted To Reference Invalid Trigger (" + I2S(trig) + ").")
-            
-            return TriggerReferenceData.create(this, trig)
-        endmethod
-        
-        method clearEvents takes nothing returns nothing
-            debug call ThrowError(this == 0,        "Trigger", "clearEvents", "Trigger", this, "Attempted To Clear Events Of Null Trigger.")
-            debug call ThrowError(not isTrigger,    "Trigger", "clearEvents", "Trigger", this, "Attempted To Clear Events Of Invalid Trigger.")
-        
-            if (TriggerMemory(this).tc != null) then
-                call TriggerRemoveCondition(TriggerMemory(this).trig, TriggerMemory(this).tc)
-            endif
-            call DestroyTrigger(TriggerMemory(this).trig)
-            
-            set TriggerMemory(this).trig = CreateTrigger()
-            if (TriggerMemory(this).enabled) then
-                set TriggerMemory(this).tc = TriggerAddCondition(TriggerMemory(this).trig, TriggerMemory(this).expression.expression)
-            else
+				if (TriggerMemory(this).tc != null) then
+					call TriggerRemoveCondition(TriggerMemory(this).trig, TriggerMemory(this).tc)
+				endif
 				call TriggerMemory(this).tc_clear()
-            endif
-        endmethod
+				call DestroyTrigger(TriggerMemory(this).trig)
+				call TriggerMemory(this).trig_clear()
+				
+				call TriggerMemory(this).expression.destroy()
+				
+				call TriggerAllocator(this).deallocate()
+			endmethod
+		else
+			method destroy takes nothing returns nothing
+				debug call ThrowError(this == 0,        "Trigger", "destroy", "Trigger", this, "Attempted To Destroy Null Trigger.")
+				debug call ThrowError(not isTrigger,    "Trigger", "destroy", "Trigger", this, "Attempted To Destroy Invalid Trigger.")
+				
+				debug set isTrigger = false
+			
+				call TriggerReferenceList(this).purge()
+				call TriggerConditionDataCollection(this).destroy()
+				
+				if (TriggerMemory(this).tc != null) then
+					call TriggerRemoveCondition(TriggerMemory(this).trig, TriggerMemory(this).tc)
+				endif
+				call TriggerMemory(this).tc_clear()
+				call DestroyTrigger(TriggerMemory(this).trig)
+				call TriggerMemory(this).trig_clear()
+				
+				call TriggerMemory(this).expression.destroy()
+				
+				call TriggerAllocator(this).deallocate()
+			endmethod
+		endif
+
+		static if DEBUG_MODE then
+			method register takes boolexpr expression returns TriggerCondition
+				return register_p(expression)
+			endmethod
+			private method register_p takes boolexpr expression returns TriggerCondition
+				debug call ThrowError(this == 0,            "Trigger", "register", "Trigger", this, "Attempted To Register To Null Trigger.")
+				debug call ThrowError(not isTrigger,        "Trigger", "register", "Trigger", this, "Attempted To Register To Invalid Trigger.")
+			
+				/*
+				*   Register the expression
+				*/
+				return TriggerConditionData.create(this, expression)
+			endmethod
+		else
+			method register takes boolexpr expression returns TriggerCondition
+				debug call ThrowError(this == 0,            "Trigger", "register", "Trigger", this, "Attempted To Register To Null Trigger.")
+				debug call ThrowError(not isTrigger,        "Trigger", "register", "Trigger", this, "Attempted To Register To Invalid Trigger.")
+			
+				/*
+				*   Register the expression
+				*/
+				return TriggerConditionData.create(this, expression)
+			endmethod
+		endif
+        
+		static if DEBUG_MODE then
+			method clear takes nothing returns nothing
+				call clear_p()
+			endmethod
+			private method clear_p takes nothing returns nothing
+				local TriggerConditionDataCollection node = TriggerConditionDataCollection(this).first
+			
+				debug call ThrowError(this == 0,        "Trigger", "clear", "Trigger", this, "Attempted To Clear Null Trigger.")
+				debug call ThrowError(not isTrigger,    "Trigger", "clear", "Trigger", this, "Attempted To Clear Invalid Trigger.")
+				
+				loop
+					exitwhen node == 0
+					
+					call BooleanExpression(node).unregister()
+					
+					set node = node.next
+				endloop
+				
+				call TriggerConditionDataCollection(this).clear()
+				
+				call TriggerMemory(this).updateTrigger()
+				call TriggerReferencedList(this).updateExpression()
+			endmethod
+		else
+			method clear takes nothing returns nothing
+				local TriggerConditionDataCollection node = TriggerConditionDataCollection(this).first
+			
+				debug call ThrowError(this == 0,        "Trigger", "clear", "Trigger", this, "Attempted To Clear Null Trigger.")
+				debug call ThrowError(not isTrigger,    "Trigger", "clear", "Trigger", this, "Attempted To Clear Invalid Trigger.")
+				
+				loop
+					exitwhen node == 0
+					
+					call BooleanExpression(node).unregister()
+					
+					set node = node.next
+				endloop
+				
+				call TriggerConditionDataCollection(this).clear()
+				
+				call TriggerMemory(this).updateTrigger()
+				call TriggerReferencedList(this).updateExpression()
+			endmethod
+		endif
+		
+		static if DEBUG_MODE then
+			method clearReferences takes nothing returns nothing
+				call clearReferences_p()
+			endmethod
+			private method clearReferences_p takes nothing returns nothing
+				debug call ThrowError(this == 0,        "Trigger", "clearReferences", "Trigger", this, "Attempted To Clear References Of Null Trigger.")
+				debug call ThrowError(not isTrigger,    "Trigger", "clearReferences", "Trigger", this, "Attempted To Clear References Of Invalid Trigger.")
+				
+				call TriggerReferenceList(this).clearReferences()
+				
+				call TriggerMemory(this).updateTrigger()
+				call TriggerReferencedList(this).updateExpression()
+			endmethod
+		else
+			method clearReferences takes nothing returns nothing
+				debug call ThrowError(this == 0,        "Trigger", "clearReferences", "Trigger", this, "Attempted To Clear References Of Null Trigger.")
+				debug call ThrowError(not isTrigger,    "Trigger", "clearReferences", "Trigger", this, "Attempted To Clear References Of Invalid Trigger.")
+				
+				call TriggerReferenceList(this).clearReferences()
+				
+				call TriggerMemory(this).updateTrigger()
+				call TriggerReferencedList(this).updateExpression()
+			endmethod
+		endif
+        
+		static if DEBUG_MODE then
+			method clearBackReferences takes nothing returns nothing
+				call clearBackReferences_p()
+			endmethod
+			
+			private method clearBackReferences_p takes nothing returns nothing
+				debug call ThrowError(this == 0,        "Trigger", "clearReferences", "Trigger", this, "Attempted To Clear Back References Of Null Trigger.")
+				debug call ThrowError(not isTrigger,    "Trigger", "clearReferences", "Trigger", this, "Attempted To Clear Back References Of Invalid Trigger.")
+				
+				call TriggerReferencedList(this).clearReferences()
+			endmethod
+		else
+			method clearBackReferences takes nothing returns nothing
+				debug call ThrowError(this == 0,        "Trigger", "clearReferences", "Trigger", this, "Attempted To Clear Back References Of Null Trigger.")
+				debug call ThrowError(not isTrigger,    "Trigger", "clearReferences", "Trigger", this, "Attempted To Clear Back References Of Invalid Trigger.")
+				
+				call TriggerReferencedList(this).clearReferences()
+			endmethod
+		endif
+        
+		static if DEBUG_MODE then
+			method reference takes thistype trig returns TriggerReference
+				return reference_p(trig)
+			endmethod
+			
+			private method reference_p takes thistype trig returns TriggerReference
+				debug call ThrowError(this == 0,            "Trigger", "reference", "Trigger", this, "Attempted To Make Null Trigger Reference Trigger.")
+				debug call ThrowError(not isTrigger,        "Trigger", "reference", "Trigger", this, "Attempted To Make Invalid Trigger Reference Trigger.")
+				debug call ThrowError(trig == 0,            "Trigger", "reference", "Trigger", this, "Attempted To Reference Null Trigger (" + I2S(trig) + ").")
+				debug call ThrowError(not trig.isTrigger,   "Trigger", "reference", "Trigger", this, "Attempted To Reference Invalid Trigger (" + I2S(trig) + ").")
+				
+				return TriggerReferenceData.create(this, trig)
+			endmethod
+		else
+			method reference takes thistype trig returns TriggerReference
+				debug call ThrowError(this == 0,            "Trigger", "reference", "Trigger", this, "Attempted To Make Null Trigger Reference Trigger.")
+				debug call ThrowError(not isTrigger,        "Trigger", "reference", "Trigger", this, "Attempted To Make Invalid Trigger Reference Trigger.")
+				debug call ThrowError(trig == 0,            "Trigger", "reference", "Trigger", this, "Attempted To Reference Null Trigger (" + I2S(trig) + ").")
+				debug call ThrowError(not trig.isTrigger,   "Trigger", "reference", "Trigger", this, "Attempted To Reference Invalid Trigger (" + I2S(trig) + ").")
+				
+				return TriggerReferenceData.create(this, trig)
+			endmethod
+		endif
+		
+		static if DEBUG_MODE then
+			method clearEvents takes nothing returns nothing
+				call clearEvents_p()
+			endmethod
+			
+			private method clearEvents_p takes nothing returns nothing
+				debug call ThrowError(this == 0,        "Trigger", "clearEvents", "Trigger", this, "Attempted To Clear Events Of Null Trigger.")
+				debug call ThrowError(not isTrigger,    "Trigger", "clearEvents", "Trigger", this, "Attempted To Clear Events Of Invalid Trigger.")
+			
+				if (TriggerMemory(this).tc != null) then
+					call TriggerRemoveCondition(TriggerMemory(this).trig, TriggerMemory(this).tc)
+				endif
+				call DestroyTrigger(TriggerMemory(this).trig)
+				
+				set TriggerMemory(this).trig = CreateTrigger()
+				if (TriggerMemory(this).enabled) then
+					set TriggerMemory(this).tc = TriggerAddCondition(TriggerMemory(this).trig, TriggerMemory(this).expression.expression)
+				else
+					call TriggerMemory(this).tc_clear()
+				endif
+			endmethod
+		else
+			method clearEvents takes nothing returns nothing
+				debug call ThrowError(this == 0,        "Trigger", "clearEvents", "Trigger", this, "Attempted To Clear Events Of Null Trigger.")
+				debug call ThrowError(not isTrigger,    "Trigger", "clearEvents", "Trigger", this, "Attempted To Clear Events Of Invalid Trigger.")
+			
+				if (TriggerMemory(this).tc != null) then
+					call TriggerRemoveCondition(TriggerMemory(this).trig, TriggerMemory(this).tc)
+				endif
+				call DestroyTrigger(TriggerMemory(this).trig)
+				
+				set TriggerMemory(this).trig = CreateTrigger()
+				if (TriggerMemory(this).enabled) then
+					set TriggerMemory(this).tc = TriggerAddCondition(TriggerMemory(this).trig, TriggerMemory(this).expression.expression)
+				else
+					call TriggerMemory(this).tc_clear()
+				endif
+			endmethod
+		endif
         
         method fire takes nothing returns nothing
             debug call ThrowError(this == 0,        "Trigger", "fire", "Trigger", this, "Attempted To Fire Null Trigger.")
@@ -600,17 +734,33 @@ library Trigger /* v1.1.0.0
             
             return TriggerMemory(this).enabled
         endmethod
-        
-        method operator enabled= takes boolean enable returns nothing
-            debug call ThrowError(this == 0,                                "Trigger", "enabled=", "Trigger", this, "Attempted To Set Null Trigger.")
-            debug call ThrowError(not isTrigger,                            "Trigger", "enabled=", "Trigger", this, "Attempted To Set Invalid Trigger.")
-            debug call ThrowWarning(TriggerMemory(this).enabled == enable,  "Trigger", "enabled=", "Trigger", this, "Setting Enabled To Its Value.")
-        
-            set TriggerMemory(this).enabled = enable
-            
-            call TriggerMemory(this).updateTrigger()
-            call TriggerReferencedList(this).updateExpression()
-        endmethod
+		
+		static if DEBUG_MODE then
+			method operator enabled= takes boolean enable returns nothing
+				set enabled_p = enable
+			endmethod
+			private method operator enabled_p= takes boolean enable returns nothing
+				debug call ThrowError(this == 0,                                "Trigger", "enabled=", "Trigger", this, "Attempted To Set Null Trigger.")
+				debug call ThrowError(not isTrigger,                            "Trigger", "enabled=", "Trigger", this, "Attempted To Set Invalid Trigger.")
+				debug call ThrowWarning(TriggerMemory(this).enabled == enable,  "Trigger", "enabled=", "Trigger", this, "Setting Enabled To Its Value.")
+			
+				set TriggerMemory(this).enabled = enable
+				
+				call TriggerMemory(this).updateTrigger()
+				call TriggerReferencedList(this).updateExpression()
+			endmethod
+		else
+			method operator enabled= takes boolean enable returns nothing
+				debug call ThrowError(this == 0,                                "Trigger", "enabled=", "Trigger", this, "Attempted To Set Null Trigger.")
+				debug call ThrowError(not isTrigger,                            "Trigger", "enabled=", "Trigger", this, "Attempted To Set Invalid Trigger.")
+				debug call ThrowWarning(TriggerMemory(this).enabled == enable,  "Trigger", "enabled=", "Trigger", this, "Setting Enabled To Its Value.")
+			
+				set TriggerMemory(this).enabled = enable
+				
+				call TriggerMemory(this).updateTrigger()
+				call TriggerReferencedList(this).updateExpression()
+			endmethod
+		endif
         
         static if DEBUG_MODE then
             static method calculateMemoryUsage takes nothing returns integer
