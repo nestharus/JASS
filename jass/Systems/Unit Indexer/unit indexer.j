@@ -18,27 +18,54 @@
 *	private struct WrappedTrigger extends array
 *
 *		method reference takes Trigger whichTrigger returns nothing
+*
 *		method register takes boolexpr whichExpression returns nothing
 *
 */
 
 //! textmacro UNIT_INDEXER_UNIT_INDEXER
 private struct WrappedTrigger extends array
-	method reference takes Trigger whichTrigger returns TriggerReference
-		local TriggerReference triggerReference = Trigger(this).reference(whichTrigger)
+	static if DEBUG_MODE then
+		method reference takes Trigger whichTrigger returns TriggerReference
+			return reference_p(whichTrigger)
+		endmethod
 		
-		call PreGameEvent.fireTrigger(whichTrigger)
+		method register takes boolexpr whichExpression returns TriggerCondition
+			return register_p(whichExpression)
+		endmethod
 		
-		return triggerReference
-	endmethod
+		private method reference_p takes Trigger whichTrigger returns TriggerReference
+			local TriggerReference triggerReference = Trigger(this).reference(whichTrigger)
+			
+			call PreGameEvent.fireTrigger(whichTrigger)
+			
+			return triggerReference
+		endmethod
 	
-	method register takes boolexpr whichExpression returns TriggerCondition
-		local TriggerCondition triggerCondition = Trigger(this).register(whichExpression)
-		
-		call PreGameEvent.fireExpression(whichExpression)
-		
-		return triggerCondition
-	endmethod
+		private method register_p takes boolexpr whichExpression returns TriggerCondition
+			local TriggerCondition triggerCondition = Trigger(this).register(whichExpression)
+			
+			call PreGameEvent.fireExpression(whichExpression)
+			
+			return triggerCondition
+		endmethod
+	else
+		method reference takes Trigger whichTrigger returns TriggerReference
+			local TriggerReference triggerReference = Trigger(this).reference(whichTrigger)
+			
+			call PreGameEvent.fireTrigger(whichTrigger)
+			
+			return triggerReference
+		endmethod
+	
+		method register takes boolexpr whichExpression returns TriggerCondition
+			local TriggerCondition triggerCondition = Trigger(this).register(whichExpression)
+			
+			call PreGameEvent.fireExpression(whichExpression)
+			
+			return triggerCondition
+		endmethod
+	endif
 endstruct
 
 private struct UnitIndexerTriggerGlobal extends array
