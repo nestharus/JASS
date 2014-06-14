@@ -43,7 +43,7 @@ library AllocT /* v1.0.1.2
 				set recycler[0] = recycler[this]
 			endif
 			
-			debug set recycler[this] = -1
+			set recycler[this] = -1
 			
 			return this
 		endmethod
