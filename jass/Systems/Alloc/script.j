@@ -1,4 +1,4 @@
-library Alloc /* v1.1.1.2
+library Alloc /* v1.1.1.3
 *************************************************************************************
 *
 *	*/uses/*
@@ -31,7 +31,7 @@ library Alloc /* v1.1.1.2
 			debug call ThrowError(this == 0, "Alloc", "allocate", "thistype", 0, "Overflow.")
 			
 			set recycler[0] = recycler[this]
-			debug set recycler[this] = -1
+			set recycler[this] = -1
 			
 			return this
 		endmethod
