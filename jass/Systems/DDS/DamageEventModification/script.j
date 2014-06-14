@@ -9,7 +9,6 @@ library DamageEventModification /* v1.1.0.0
 *
 *       */ DDS                      /*
 *       */ DamageEvent              /*
-*       */ RegisterPlayerUnitEvent  /*
 *
 *************************************************************************************
 *
@@ -74,7 +73,7 @@ endglobals
         static method funcKill takes nothing returns boolean
             local unit u = GetTriggerUnit()
             local thistype target = GetUnitUserData(u)
-            local real maxLife = GetUnitState(GetUnitById(target), UNIT_STATE_MAX_LIFE)
+            local real maxLife = GetUnitState(UnitIndex(target).unit, UNIT_STATE_MAX_LIFE)
             
             call DestroyTrigger(GetTriggeringTrigger())
             
@@ -86,14 +85,14 @@ endglobals
                 call SetUnitY(killUnit, GetUnitY(u))
                 call SetUnitOwner(killUnit, target.sourcePlayer, false)
                 
-                call SetWidgetLife(GetUnitById(target), maxLife*.5)
+                call SetWidgetLife(UnitIndex(target).unit, maxLife*.5)
                 call UnitDamageTarget(killUnit, u, 10000000, false, true, null, DAMAGE_TYPE_UNIVERSAL, null)
-                call SetWidgetLife(GetUnitById(target), maxLife*.5)
+                call SetWidgetLife(UnitIndex(target).unit, maxLife*.5)
                 call UnitDamageTarget(killUnit, u, 10000000, false, true, null, DAMAGE_TYPE_NORMAL, null)
             else
-                call SetWidgetLife(GetUnitById(target), maxLife*.5)
+                call SetWidgetLife(UnitIndex(target).unit, maxLife*.5)
                 call UnitDamageTarget(target.source, u, 10000000, false, true, null, DAMAGE_TYPE_UNIVERSAL, null)
-                call SetWidgetLife(GetUnitById(target), maxLife*.5)
+                call SetWidgetLife(UnitIndex(target).unit, maxLife*.5)
                 call UnitDamageTarget(target.source, u, 10000000, false, true, null, DAMAGE_TYPE_NORMAL, null)
             endif
             call UnitRemoveAbility(u, ARMOR_ABILITY_ID)
@@ -129,9 +128,9 @@ endglobals
             set target.sourcePlayer = sourcePlayer
             
             set t = CreateTrigger()
-            call TriggerRegisterUnitStateEvent(t, GetUnitById(target), UNIT_STATE_LIFE, GREATER_THAN, GetWidgetLife(GetUnitById(target))*.99)
+            call TriggerRegisterUnitStateEvent(t, UnitIndex(target).unit, UNIT_STATE_LIFE, GREATER_THAN, GetWidgetLife(UnitIndex(target).unit)*.99)
             call TriggerAddCondition(t, exprKill)
-            call SetWidgetLife(GetUnitById(target), GetWidgetLife(GetUnitById(target))*.99)
+            call SetWidgetLife(UnitIndex(target).unit, GetWidgetLife(UnitIndex(target).unit)*.99)
             
             set t = null
         endmethod
@@ -149,10 +148,10 @@ endglobals
             
             set t = CreateTrigger()
             if (GetEventDamage() < 0) then
-                call TriggerRegisterUnitStateEvent(t, GetUnitById(target), UNIT_STATE_LIFE, GREATER_THAN, GetWidgetLife(GetUnitById(target))*.99)
-                call SetWidgetLife(GetUnitById(target), GetWidgetLife(GetUnitById(target))*.99)
+                call TriggerRegisterUnitStateEvent(t, UnitIndex(target).unit, UNIT_STATE_LIFE, GREATER_THAN, GetWidgetLife(UnitIndex(target).unit)*.99)
+                call SetWidgetLife(UnitIndex(target).unit, GetWidgetLife(UnitIndex(target).unit)*.99)
             else
-                call TriggerRegisterUnitStateEvent(t, GetUnitById(target), UNIT_STATE_LIFE, LESS_THAN, GetWidgetLife(GetUnitById(target)) - GetEventDamage()*.5)
+                call TriggerRegisterUnitStateEvent(t, UnitIndex(target).unit, UNIT_STATE_LIFE, LESS_THAN, GetWidgetLife(UnitIndex(target).unit) - GetEventDamage()*.5)
             endif
             call TriggerAddCondition(t, exprLife)
             
@@ -181,17 +180,6 @@ endglobals
             endmethod
             static method operator damage= takes real newDamage returns nothing
                 set damage_p = newDamage
-                
-                static if ENABLE_GUI then
-                    call DisableTrigger(GUI.damage)
-                    call DisableTrigger(GUI.life)
-                    set udg_DDS_damage = newDamage
-                    set udg_DDS_damageOriginal = DDS.damageOriginal
-                    set udg_DDS_damageModifiedAmount = DDS.damageModifiedAmount
-                    set udg_DDS_life = DDS.life
-                    call EnableTrigger(GUI.damage)
-                    call EnableTrigger(GUI.life)
-                endif
             endmethod
             
         endmodule
@@ -229,10 +217,6 @@ module DAMAGE_EVENT_MODIFICATION_RESPONSE_BEFORE
                 set actualDamage = damage_p
                 set damageOriginal = actualDamage                   //original damage as seen by user
                 set u = targetId_p.unit
-                
-                static if ENABLE_GUI then
-                    set damage = damage_p
-                endif
 endmodule
 module DAMAGE_EVENT_MODIFICATION_RESPONSE
                 
@@ -259,31 +243,7 @@ endmodule
 module DAMAGE_EVENT_MODIFICATION_RESPONSE_CLEANUP
                 set damageOriginal = prevDamageOriginal
                 set u = null
-                
-                static if ENABLE_GUI then
-                    set damage = damage_p
-                endif
 endmodule        
-
-        module DAMAGE_EVENT_MODIFICATION_GUI_GLOBALS
-            static trigger damage
-        endmodule
-        module DAMAGE_EVENT_MODIFICATION_GUI
-            private static method DDS_damage takes nothing returns boolean
-                set DDS.damage = udg_DDS_damage
-                return false
-            endmethod
-            private static method DDS_initVariables takes nothing returns nothing
-                set GUI.damage = CreateTrigger()
-                call TriggerRegisterVariableEvent(GUI.damage, "udg_DDS_damage", NOT_EQUAL, 0.)
-                call TriggerRegisterVariableEvent(GUI.damage, "udg_DDS_damage", EQUAL, 0.)
-                call TriggerAddCondition(GUI.damage, Condition(function thistype.DDS_damage))
-            endmethod
-            
-            private static method onInit takes nothing returns nothing
-                call DDS_initVariables()
-            endmethod
-        endmodule
     endscope
     //! endtextmacro
 endlibrary
