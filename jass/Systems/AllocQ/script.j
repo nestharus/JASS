@@ -43,7 +43,7 @@ library AllocQ /* v1.0.0.2
 			debug call ThrowError(allocateCount == 8191, "AllocQ", "allocate", "thistype", 0, "Overflow.")
 			
 			set recycler[0] = recycler[this]
-			debug set recycler[this] = -1
+			set recycler[this] = -1
 			
 			return this
 		endmethod

@@ -6,7 +6,7 @@
 *
 *		private struct p_UnitIndex extends array
 *
-*		debug method operator isAllocated takes nothing returns boolean
+*		method operator isAllocated takes nothing returns boolean
 *		debug static method calculateMemoryUsage takes nothing returns integer
 *		debug static method getAllocatedMemoryAsString takes nothing returns string
 *

@@ -18,27 +18,54 @@
 *	private struct WrappedTrigger extends array
 *
 *		method reference takes Trigger whichTrigger returns nothing
+*
 *		method register takes boolexpr whichExpression returns nothing
 *
 */
 
 //! textmacro UNIT_INDEXER_UNIT_INDEXER
 private struct WrappedTrigger extends array
-	method reference takes Trigger whichTrigger returns TriggerReference
-		local TriggerReference triggerReference = Trigger(this).reference(whichTrigger)
+	static if DEBUG_MODE then
+		method reference takes Trigger whichTrigger returns TriggerReference
+			return reference_p(whichTrigger)
+		endmethod
 		
-		call PreGameEvent.fireTrigger(whichTrigger)
+		method register takes boolexpr whichExpression returns TriggerCondition
+			return register_p(whichExpression)
+		endmethod
 		
-		return triggerReference
-	endmethod
+		private method reference_p takes Trigger whichTrigger returns TriggerReference
+			local TriggerReference triggerReference = Trigger(this).reference(whichTrigger)
+			
+			call PreGameEvent.fireTrigger(whichTrigger)
+			
+			return triggerReference
+		endmethod
 	
-	method register takes boolexpr whichExpression returns TriggerCondition
-		local TriggerCondition triggerCondition = Trigger(this).register(whichExpression)
-		
-		call PreGameEvent.fireExpression(whichExpression)
-		
-		return triggerCondition
-	endmethod
+		private method register_p takes boolexpr whichExpression returns TriggerCondition
+			local TriggerCondition triggerCondition = Trigger(this).register(whichExpression)
+			
+			call PreGameEvent.fireExpression(whichExpression)
+			
+			return triggerCondition
+		endmethod
+	else
+		method reference takes Trigger whichTrigger returns TriggerReference
+			local TriggerReference triggerReference = Trigger(this).reference(whichTrigger)
+			
+			call PreGameEvent.fireTrigger(whichTrigger)
+			
+			return triggerReference
+		endmethod
+	
+		method register takes boolexpr whichExpression returns TriggerCondition
+			local TriggerCondition triggerCondition = Trigger(this).register(whichExpression)
+			
+			call PreGameEvent.fireExpression(whichExpression)
+			
+			return triggerCondition
+		endmethod
+	endif
 endstruct
 
 private struct UnitIndexerTriggerGlobal extends array
@@ -46,8 +73,8 @@ private struct UnitIndexerTriggerGlobal extends array
 	readonly static Trigger			ON_DEINDEX
 	
 	private static method init takes nothing returns nothing
-		set ON_INDEX = Trigger.create()
-		set ON_DEINDEX = Trigger.create()
+		set ON_INDEX = Trigger.create(false)
+		set ON_DEINDEX = Trigger.create(true)
 	endmethod
 	
 	implement Init
@@ -56,18 +83,14 @@ endstruct
 private keyword ON_DEINDEX_MAIN
 private struct UnitIndexerTrigger extends array
 	readonly Trigger ON_DEINDEX
-	readonly Trigger ON_DEINDEX_MAIN
 	
 	method createDeindex takes nothing returns nothing
-		set ON_DEINDEX = Trigger.create()
-		set ON_DEINDEX_MAIN = Trigger.create()
+		set ON_DEINDEX = Trigger.create(true)
 		
-		call ON_DEINDEX_MAIN.reference(ON_DEINDEX)
-		call ON_DEINDEX_MAIN.reference(UnitIndexerTriggerGlobal.ON_DEINDEX)
+		call ON_DEINDEX.reference(UnitIndexerTriggerGlobal.ON_DEINDEX)
 	endmethod
 	
 	method destroyDeindex takes nothing returns nothing
-		call ON_DEINDEX_MAIN.destroy()
 		call ON_DEINDEX.destroy()
 	endmethod
 endstruct
@@ -128,7 +151,7 @@ struct UnitIndexer extends array
 		if (GetUnitAbilityLevel(GetTriggerUnit(), ABILITIES_UNIT_INDEXER) == 0) then
 			call PreGameEvent.removeUnitIndex(index)
 			
-			call fire(thistype(index).Event.ON_DEINDEX_MAIN, index)
+			call fire(thistype(index).Event.ON_DEINDEX, index)
 			
 			call thistype(index).Event.destroyDeindex()
 			
