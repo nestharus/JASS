@@ -3,7 +3,7 @@ library AllocQ /* v1.0.1.0
 *
 *	*/ uses /*
 *
-*		*/ ErrorMessage /*
+*		*/ ErrorMessage /*		https://github.com/nestharus/JASS/tree/master/jass/Systems/ErrorMessage
 *
 *************************************************************************************
 *
