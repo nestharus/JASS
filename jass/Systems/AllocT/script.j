@@ -1,49 +1,80 @@
-library AllocT /* v1.0.1.2
+library AllocT /* v1.0.2.0
 *************************************************************************************
 *
-*	*/ uses /*
+*	*/uses/*
 *
-*		*/ ErrorMessage /*
-*		*/ Table		/*
+*		*/ ErrorMessage /*      https://github.com/nestharus/JASS/tree/master/jass/Systems/ErrorMessage
+*		*/ Table		/*      http://www.hiveworkshop.com/forums/jass-resources-412/snippet-new-table-188084/
+*
+*************************************************************************************
+*
+*	Minimizes code generation and global variables while maintaining
+*   excellent performance.
+*
+*   Uses hashtable instead of array, which drastically reduces performance
+*   but uncaps the instance limit. Should use with table fields instead of
+*   array fields.
+*
+*       local thistype this = recycler[0]
+*
+*       if (recycler[this] == 0) then
+*           set recycler[0] = this + 1
+*       else
+*           set recycler[0] = recycler[this]
+*       endif
 *
 ************************************************************************************
 *
 *	module AllocT
 *
-*		Fields
-*		-------------------------
+*		static method allocate takes nothing returns thistype
+*		method deallocate takes nothing returns nothing
 *
-*			readonly boolean isAllocated
+*		readonly boolean isAllocated
 *
-*		Methods
-*		-------------------------
-*
-*			static method allocate takes nothing returns thistype
-*			method deallocate takes nothing returns nothing
-*
-*			debug static method calculateMemoryUsage takes nothing returns integer
-*			debug static method getAllocatedMemoryAsString takes nothing returns string
+*		debug static method calculateMemoryUsage takes nothing returns integer
+*		debug static method getAllocatedMemoryAsString takes nothing returns string
 *
 ************************************************************************************/
 	module AllocT
+        /*
+        *   stack
+        */
 		private static Table recycler
-		private static integer instanceCount = 0
+        
+        /*
+        *   list of allocated memory
+        */
+        debug private static Table allocatedNext
+        debug private static Table allocatedPrev
+        
+        /*
+        *   free memory counter
+        */
+        debug private static integer usedMemory = 0
 		
-		method operator isAllocated takes nothing returns boolean
-			return recycler[this] == -1
-		endmethod
-		
+        /*
+        *   allocation
+        */
 		static method allocate takes nothing returns thistype
 			local thistype this = recycler[0]
 			
-			if (this == 0) then
-				set this = instanceCount + 1
-				set instanceCount = this
-			else
-				set recycler[0] = recycler[this]
-			endif
-			
-			set recycler[this] = -1
+			debug call ThrowError(this < 0, "AllocT", "allocate", "thistype", 0, "Overflow.")
+            
+            if (recycler[this] == 0) then
+                set recycler[0] = this + 1
+            else
+                set recycler[0] = recycler[this]
+            endif
+            
+            set recycler[this] = -1
+            
+            debug set usedMemory = usedMemory + 1
+            
+            debug set allocatedNext[this] = 0
+            debug set allocatedPrev[this] = allocatedPrev[0]
+            debug set allocatedNext[allocatedPrev[0]] = this
+            debug set allocatedPrev[0] = this
 			
 			return this
 		endmethod
@@ -53,88 +84,54 @@ library AllocT /* v1.0.1.2
 			
 			set recycler[this] = recycler[0]
 			set recycler[0] = this
+            
+            debug set usedMemory = usedMemory - 1
+            
+            debug set allocatedNext[allocatedPrev[this]] = allocatedNext[this]
+            debug set allocatedPrev[allocatedNext[this]] = allocatedPrev[this]
 		endmethod
 		
-		private static method onInit takes nothing returns nothing
-			set recycler = Table.create()
+        /*
+        *   analysis
+        */
+        method operator isAllocated takes nothing returns boolean
+			return recycler[this] == -1
 		endmethod
-		
+        
 		static if DEBUG_MODE then
 			static method calculateMemoryUsage takes nothing returns integer
-				local integer start = 1
-				local integer end = 8191
-				local integer count = 0
-				
-				loop
-					exitwhen start > end
-					if (start + 500 > end) then
-						set count = count + checkRegion(start, end)
-						set start = end + 1
-					else
-						set count = checkRegion(start, start + 500)
-						set start = start + 501
-					endif
-				endloop
-				
-				return count
-			endmethod
-			
-			private static method checkRegion takes integer start, integer end returns integer
-				local integer count = 0
-			
-				loop
-					exitwhen start > end
-					if (recycler[start] == -1) then
-						set count = count + 1
-					endif
-					set start = start + 1
-				endloop
-				
-				return count
+				return usedMemory
 			endmethod
 			
 			static method getAllocatedMemoryAsString takes nothing returns string
-				local integer start = 1
-				local integer end = 8191
-				local string memory = null
+				local integer memoryCell = allocatedNext[0]
+				local string memoryRepresentation = null
 				
 				loop
-					exitwhen start > end
-					if (start + 500 > end) then
-						if (memory != null) then
-							set memory = memory + ", "
-						endif
-						set memory = memory + checkRegion2(start, end)
-						set start = end + 1
-					else
-						if (memory != null) then
-							set memory = memory + ", "
-						endif
-						set memory = memory + checkRegion2(start, start + 500)
-						set start = start + 501
-					endif
-				endloop
-				
-				return memory
-			endmethod
-			
-			private static method checkRegion2 takes integer start, integer end returns string
-				local string memory = null
-			
-				loop
-					exitwhen start > end
-					if (recycler[start] == -1) then
-						if (memory == null) then
-							set memory = I2S(start)
-						else
-							set memory = memory + ", " + I2S(start)
-						endif
-					endif
-					set start = start + 1
-				endloop
-				
-				return memory
+					exitwhen memoryCell == 0
+                    
+                    if (memoryRepresentation == null) then
+                        set memoryRepresentation = I2S(memoryCell)
+                    else
+                        set memoryRepresentation = memoryRepresentation + ", " + I2S(memoryCell)
+                    endif
+                    
+                    set memoryCell = allocatedNext[memoryCell]
+                endloop
+                    
+				return memoryRepresentation
 			endmethod
 		endif
+        
+        /*
+        *   initialization
+        */
+		private static method onInit takes nothing returns nothing
+            set recycler = Table.create()
+            debug set allocatedNext = Table.create()
+            debug set allocatedPrev = Table.create()
+            
+			set recycler[0] = 1
+		endmethod
 	endmodule
 endlibrary
