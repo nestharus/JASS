@@ -1,4 +1,4 @@
-library ListT /* v1.0.0.3
+library ListT /* v1.0.1.0
 ************************************************************************************
 *
 *	*/ uses /*
@@ -16,6 +16,9 @@ library ListT /* v1.0.0.3
 *
 *		Fields
 *		-------------------------
+*
+*			debug readonly boolean isList
+*			debug readonly boolean isElement
 *
 *			readonly static integer sentinel
 *
@@ -74,6 +77,14 @@ library ListT /* v1.0.0.3
 		debug endmethod
 		debug method operator isCollection= takes boolean value returns nothing
 			debug set p_isCollection.boolean[this] = value
+		debug endmethod
+		
+		debug method operator isList takes nothing returns boolean
+			debug return isCollection
+		debug endmethod
+		
+		debug method operator isElement takes nothing returns boolean
+			debug return isNode
 		debug endmethod
 		
 		private static Table p_list
