@@ -19,7 +19,7 @@ library AllocQ /* v1.1.0.0
 *
 ************************************************************************************
 *
-*	module AllocQFast
+*	module AllocQ
 *
 *		Fields
 *		-------------------------
@@ -45,17 +45,6 @@ library AllocQ /* v1.1.0.0
 		private static integer last = 8191
 		
 		/*
-		*	list of allocated memory
-		*/
-		debug private static integer array allocatedNext
-		debug private static integer array allocatedPrev
-		
-		/*
-		*	free memory counter
-		*/
-		debug private static integer usedMemory = 0
-		
-		/*
 		*	allocation
 		*/
 		static method allocate takes nothing returns thistype
@@ -67,13 +56,6 @@ library AllocQ /* v1.1.0.0
 			
 			set recycler[alloc] = -1
 			
-			debug set usedMemory = usedMemory + 1
-			
-			debug set allocatedNext[alloc] = 0
-			debug set allocatedPrev[alloc] = allocatedPrev[0]
-			debug set allocatedNext[allocatedPrev[0]] = alloc
-			debug set allocatedPrev[0] = alloc
-			
 			return alloc
 		endmethod
 		
@@ -83,11 +65,6 @@ library AllocQ /* v1.1.0.0
 			set recycler[last] = this
 			set recycler[this] = 0
 			set last = this
-			
-			debug set usedMemory = usedMemory - 1
-			
-			debug set allocatedNext[allocatedPrev[this]] = allocatedNext[this]
-			debug set allocatedPrev[allocatedNext[this]] = allocatedPrev[this]
 		endmethod
 		
 		/*
