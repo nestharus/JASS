@@ -1,73 +1,273 @@
-library AllocT /* v1.1.0.0
+library AllocQ /* v1.2.0.0
 *************************************************************************************
 *
 *	*/ uses /*
 *
-*		*/ ErrorMessage		/*		https://github.com/nestharus/JASS/tree/master/jass/Systems/ErrorMessage
-*		*/ Table			/*		http://www.hiveworkshop.com/forums/jass-resources-412/snippet-new-table-188084/
-*		*/ MemoryAnalysis	/*			
+*		*/ ErrorMessage		/*		github.com/nestharus/JASS/tree/master/jass/Systems/ErrorMessage
+*		*/ MemoryAnalysis	/*		
 *
 *************************************************************************************
 *
-*	Minimizes code generation and global variables while maintaining
-*	excellent performance.
+*	Maximizes speed by reducing local variable declarations and removing
+*	if-statement.
 *
-*	Uses hashtable instead of array, which drastically reduces performance
-*	but uncaps the instance limit. Should use with table fields instead of
-*	array fields.
+*	Uses a queue instead of a stack for recycler. Using a queue requires one
+*	extra variable declaration.
 *
-*		local thistype this = recycler[0]
-*
-*		if (recycler[this] == 0) then
-*			set recycler[0] = this + 1
-*		else
-*			set recycler[0] = recycler[this]
-*		endif
+*		set alloc = recycler[0]
+*		set recycler[0] = recycler[alloc]
 *
 ************************************************************************************
 *
-*	module AllocT
+*	module AllocQ
 *
 *		static method allocate takes nothing returns thistype
 *		method deallocate takes nothing returns nothing
 *
 *		readonly boolean isAllocated
 *
+*		debug readonly integer monitorCount
+*		-	the amount of global memory being monitored by this
+*		debug readonly integer monitorString
+*		-	gets a string representation of all global memory being monitored by this
+*		debug readonly integer address
+*		-	global memory address for debugging
+*		-	used with monitor and stopMonitor
+*
 *		debug static method calculateMemoryUsage takes nothing returns integer
 *		debug static method getAllocatedMemoryAsString takes nothing returns string
 *
+*		debug method monitor takes string label, integer address returns nothing
+*		-	monitor a global memory address with a label
+*		-	used to identify memory leaks
+*		-	should be memory that ought to be destroyed by the time this is destroyed
+*		debug method stopMonitor takes integer address returns nothing
+*		-	stops monitoring global memory
+*		debug method stopMonitorValue takes handle monitoredHandle returns nothing
+*		-	stops monitoring handle values
+*
+*		The Following Are Used To Monitor Handle Values
+*
+*			debug method monitor_widget				takes string label, widget				handleToTrack returns nothing
+*			debug method monitor_destructable		takes string label, destructable		handleToTrack returns nothing
+*			debug method monitor_item				takes string label, item				handleToTrack returns nothing
+*			debug method monitor_unit				takes string label, unit				handleToTrack returns nothing
+*			debug method monitor_timer				takes string label, timer				handleToTrack returns nothing
+*			debug method monitor_trigger			takes string label, trigger				handleToTrack returns nothing
+*			debug method monitor_triggercondition	takes string label, triggercondition	handleToTrack returns nothing
+*			debug method monitor_triggeraction		takes string label, triggeraction		handleToTrack returns nothing
+*			debug method monitor_force				takes string label, force				handleToTrack returns nothing
+*			debug method monitor_group				takes string label, group				handleToTrack returns nothing
+*			debug method monitor_location			takes string label, location			handleToTrack returns nothing
+*			debug method monitor_rect				takes string label, rect				handleToTrack returns nothing
+*			debug method monitor_boolexpr			takes string label, boolexpr			handleToTrack returns nothing
+*			debug method monitor_effect				takes string label, effect				handleToTrack returns nothing
+*			debug method monitor_unitpool			takes string label, unitpool			handleToTrack returns nothing
+*			debug method monitor_itempool			takes string label, itempool			handleToTrack returns nothing
+*			debug method monitor_quest				takes string label, quest				handleToTrack returns nothing
+*			debug method monitor_defeatcondition	takes string label, defeatcondition		handleToTrack returns nothing
+*			debug method monitor_timerdialog		takes string label, timerdialog			handleToTrack returns nothing
+*			debug method monitor_leaderboard		takes string label, leaderboard			handleToTrack returns nothing
+*			debug method monitor_multiboard			takes string label, multiboard			handleToTrack returns nothing
+*			debug method monitor_multiboarditem		takes string label, multiboarditem		handleToTrack returns nothing
+*			debug method monitor_dialog				takes string label, dialog				handleToTrack returns nothing
+*			debug method monitor_button				takes string label, button				handleToTrack returns nothing
+*			debug method monitor_texttag			takes string label, texttag				handleToTrack returns nothing
+*			debug method monitor_lightning			takes string label, lightning			handleToTrack returns nothing
+*			debug method monitor_image				takes string label, image				handleToTrack returns nothing
+*			debug method monitor_ubersplat			takes string label, ubersplat			handleToTrack returns nothing
+*			debug method monitor_region				takes string label, region				handleToTrack returns nothing
+*			debug method monitor_fogmodifier		takes string label, fogmodifier			handleToTrack returns nothing
+*			debug method monitor_hashtable			takes string label, hashtable			handleToTrack returns nothing
+*
 ************************************************************************************/
-	module AllocT
+	module AllocQ
 		/*
 		*	stack
 		*/
-		private static Table recycler
+		private static integer array recycler
+		private static integer alloc
+		private static integer last = 8191
+		
+		debug private MemoryMonitor globalAddress
+		
+		debug method operator address takes nothing returns integer
+			debug call ThrowError(recycler[this] != -1, "Alloc", "address", "thistype", this, "Attempted To Access Null Instance.")
+			debug return globalAddress
+		debug endmethod
 		
 		/*
 		*	allocation
 		*/
 		static method allocate takes nothing returns thistype
-			local thistype this = recycler[0]
+			set alloc = recycler[0]
 			
-			debug call ThrowError(this < 0, "AllocT", "allocate", "thistype", 0, "Overflow.")
+			debug call ThrowError(alloc == 0, "AllocQ", "allocate", "thistype", 0, "Overflow.")
 			
-			if (recycler[this] == 0) then
-				set recycler[0] = this + 1
-			else
-				set recycler[0] = recycler[this]
-			endif
+			set recycler[0] = recycler[alloc]
 			
-			set recycler[this] = -1
+			set recycler[alloc] = -1
 			
-			return this
+			debug set thistype(alloc).globalAddress = MemoryMonitor.allocate("thistype")
+			
+			return alloc
 		endmethod
 		
 		method deallocate takes nothing returns nothing
-			debug call ThrowError(recycler[this] != -1, "AllocT", "deallocate", "thistype", this, "Attempted To Deallocate Null Instance.")
+			debug call ThrowError(recycler[this] != -1, "AllocQ", "deallocate", "thistype", this, "Attempted To Deallocate Null Instance.")
 			
-			set recycler[this] = recycler[0]
-			set recycler[0] = this
+			debug call globalAddress.deallocate()
+			debug set globalAddress = 0
+			
+			set recycler[last] = this
+			set recycler[this] = 0
+			set last = this
 		endmethod
+		
+		debug method monitor takes string label, integer address returns nothing
+			debug call globalAddress.monitor(label, address)
+		debug endmethod
+		debug method stopMonitor takes integer address returns nothing
+			debug call globalAddress.stopMonitor(address)
+		debug endmethod
+		debug method stopMonitorValue takes handle monitoredHandle returns nothing
+			debug call ThrowError(recycler[this] != -1, "Alloc", "stopMonitorValue", "thistype", this, "Attempted To Access Null Instance.")
+			debug call globalAddress.stopMonitorValue(monitoredHandle)
+		debug endmethod
+		
+		debug method operator monitorCount takes nothing returns integer
+			debug call ThrowError(recycler[this] != -1, "Alloc", "monitorCount", "thistype", this, "Attempted To Access Null Instance.")
+			debug return globalAddress.monitorCount
+		debug endmethod
+		debug method operator monitorString takes nothing returns string
+			debug call ThrowError(recycler[this] != -1, "Alloc", "monitorString", "thistype", this, "Attempted To Access Null Instance.")
+			debug return globalAddress.monitorString
+		debug endmethod
+		
+		debug method monitor_widget				takes string label, widget				handleToTrack returns nothing
+			debug call ThrowError(recycler[this] != -1, "Alloc", "monitor_widget", "thistype", this, "Attempted To Access Null Instance.")
+			debug call globalAddress.monitor_widget(label, handleToTrack)
+		debug endmethod
+		debug method monitor_destructable		takes string label, destructable		handleToTrack returns nothing
+			debug call ThrowError(recycler[this] != -1, "Alloc", "monitor_destructable", "thistype", this, "Attempted To Access Null Instance.")
+			debug call globalAddress.monitor_destructable(label, handleToTrack)
+		debug endmethod
+		debug method monitor_item				takes string label, item				handleToTrack returns nothing
+			debug call ThrowError(recycler[this] != -1, "Alloc", "monitor_item", "thistype", this, "Attempted To Access Null Instance.")
+			debug call globalAddress.monitor_item(label, handleToTrack)
+		debug endmethod
+		debug method monitor_unit				takes string label, unit				handleToTrack returns nothing
+			debug call ThrowError(recycler[this] != -1, "Alloc", "monitor_unit", "thistype", this, "Attempted To Access Null Instance.")
+			debug call globalAddress.monitor_unit(label, handleToTrack)
+		debug endmethod
+		debug method monitor_timer				takes string label, timer				handleToTrack returns nothing
+			debug call ThrowError(recycler[this] != -1, "Alloc", "monitor_timer", "thistype", this, "Attempted To Access Null Instance.")
+			debug call globalAddress.monitor_timer(label, handleToTrack)
+		debug endmethod
+		debug method monitor_trigger			takes string label, trigger				handleToTrack returns nothing
+			debug call ThrowError(recycler[this] != -1, "Alloc", "monitor_trigger", "thistype", this, "Attempted To Access Null Instance.")
+			debug call globalAddress.monitor_trigger(label, handleToTrack)
+		debug endmethod
+		debug method monitor_triggercondition	takes string label, triggercondition	handleToTrack returns nothing
+			debug call ThrowError(recycler[this] != -1, "Alloc", "monitor_triggercondition", "thistype", this, "Attempted To Access Null Instance.")
+			debug call globalAddress.monitor_triggercondition(label, handleToTrack)
+		debug endmethod
+		debug method monitor_triggeraction		takes string label, triggeraction		handleToTrack returns nothing
+			debug call ThrowError(recycler[this] != -1, "Alloc", "monitor_triggeraction", "thistype", this, "Attempted To Access Null Instance.")
+			debug call globalAddress.monitor_triggeraction(label, handleToTrack)
+		debug endmethod
+		debug method monitor_force				takes string label, force				handleToTrack returns nothing
+			debug call ThrowError(recycler[this] != -1, "Alloc", "monitor_force", "thistype", this, "Attempted To Access Null Instance.")
+			debug call globalAddress.monitor_force(label, handleToTrack)
+		debug endmethod
+		debug method monitor_group				takes string label, group				handleToTrack returns nothing
+			debug call ThrowError(recycler[this] != -1, "Alloc", "monitor_group", "thistype", this, "Attempted To Access Null Instance.")
+			debug call globalAddress.monitor_group(label, handleToTrack)
+		debug endmethod
+		debug method monitor_location			takes string label, location			handleToTrack returns nothing
+			debug call ThrowError(recycler[this] != -1, "Alloc", "monitor_location", "thistype", this, "Attempted To Access Null Instance.")
+			debug call globalAddress.monitor_location(label, handleToTrack)
+		debug endmethod
+		debug method monitor_rect				takes string label, rect				handleToTrack returns nothing
+			debug call ThrowError(recycler[this] != -1, "Alloc", "monitor_rect", "thistype", this, "Attempted To Access Null Instance.")
+			debug call globalAddress.monitor_rect(label, handleToTrack)
+		debug endmethod
+		debug method monitor_boolexpr			takes string label, boolexpr			handleToTrack returns nothing
+			debug call ThrowError(recycler[this] != -1, "Alloc", "monitor_boolexpr", "thistype", this, "Attempted To Access Null Instance.")
+			debug call globalAddress.monitor_boolexpr(label, handleToTrack)
+		debug endmethod
+		debug method monitor_effect				takes string label, effect				handleToTrack returns nothing
+			debug call ThrowError(recycler[this] != -1, "Alloc", "monitor_effect", "thistype", this, "Attempted To Access Null Instance.")
+			debug call globalAddress.monitor_effect(label, handleToTrack)
+		debug endmethod
+		debug method monitor_unitpool			takes string label, unitpool			handleToTrack returns nothing
+			debug call ThrowError(recycler[this] != -1, "Alloc", "monitor_unitpool", "thistype", this, "Attempted To Access Null Instance.")
+			debug call globalAddress.monitor_unitpool(label, handleToTrack)
+		debug endmethod
+		debug method monitor_itempool			takes string label, itempool			handleToTrack returns nothing
+			debug call ThrowError(recycler[this] != -1, "Alloc", "monitor_itempool", "thistype", this, "Attempted To Access Null Instance.")
+			debug call globalAddress.monitor_itempool(label, handleToTrack)
+		debug endmethod
+		debug method monitor_quest				takes string label, quest				handleToTrack returns nothing
+			debug call ThrowError(recycler[this] != -1, "Alloc", "monitor_quest", "thistype", this, "Attempted To Access Null Instance.")
+			debug call globalAddress.monitor_quest(label, handleToTrack)
+		debug endmethod
+		debug method monitor_defeatcondition	takes string label, defeatcondition		handleToTrack returns nothing
+			debug call ThrowError(recycler[this] != -1, "Alloc", "monitor_defeatcondition", "thistype", this, "Attempted To Access Null Instance.")
+			debug call globalAddress.monitor_defeatcondition(label, handleToTrack)
+		debug endmethod
+		debug method monitor_timerdialog		takes string label, timerdialog			handleToTrack returns nothing
+			debug call ThrowError(recycler[this] != -1, "Alloc", "monitor_timerdialog", "thistype", this, "Attempted To Access Null Instance.")
+			debug call globalAddress.monitor_timerdialog(label, handleToTrack)
+		debug endmethod
+		debug method monitor_leaderboard		takes string label, leaderboard			handleToTrack returns nothing
+			debug call ThrowError(recycler[this] != -1, "Alloc", "monitor_leaderboard", "thistype", this, "Attempted To Access Null Instance.")
+			debug call globalAddress.monitor_leaderboard(label, handleToTrack)
+		debug endmethod
+		debug method monitor_multiboard			takes string label, multiboard			handleToTrack returns nothing
+			debug call ThrowError(recycler[this] != -1, "Alloc", "monitor_multiboard", "thistype", this, "Attempted To Access Null Instance.")
+			debug call globalAddress.monitor_multiboard(label, handleToTrack)
+		debug endmethod
+		debug method monitor_multiboarditem		takes string label, multiboarditem		handleToTrack returns nothing
+			debug call ThrowError(recycler[this] != -1, "Alloc", "monitor_multiboarditem", "thistype", this, "Attempted To Access Null Instance.")
+			debug call globalAddress.monitor_multiboarditem(label, handleToTrack)
+		debug endmethod
+		debug method monitor_dialog				takes string label, dialog				handleToTrack returns nothing
+			debug call ThrowError(recycler[this] != -1, "Alloc", "monitor_dialog", "thistype", this, "Attempted To Access Null Instance.")
+			debug call globalAddress.monitor_dialog(label, handleToTrack)
+		debug endmethod
+		debug method monitor_button				takes string label, button				handleToTrack returns nothing
+			debug call ThrowError(recycler[this] != -1, "Alloc", "monitor_button", "thistype", this, "Attempted To Access Null Instance.")
+			debug call globalAddress.monitor_button(label, handleToTrack)
+		debug endmethod
+		debug method monitor_texttag			takes string label, texttag				handleToTrack returns nothing
+			debug call ThrowError(recycler[this] != -1, "Alloc", "monitor_texttag", "thistype", this, "Attempted To Access Null Instance.")
+			debug call globalAddress.monitor_texttag(label, handleToTrack)
+		debug endmethod
+		debug method monitor_lightning			takes string label, lightning			handleToTrack returns nothing
+			debug call ThrowError(recycler[this] != -1, "Alloc", "monitor_lightning", "thistype", this, "Attempted To Access Null Instance.")
+			debug call globalAddress.monitor_lightning(label, handleToTrack)
+		debug endmethod
+		debug method monitor_image				takes string label, image				handleToTrack returns nothing
+			debug call ThrowError(recycler[this] != -1, "Alloc", "monitor_image", "thistype", this, "Attempted To Access Null Instance.")
+			debug call globalAddress.monitor_image(label, handleToTrack)
+		debug endmethod
+		debug method monitor_ubersplat			takes string label, ubersplat			handleToTrack returns nothing
+			debug call ThrowError(recycler[this] != -1, "Alloc", "monitor_ubersplat", "thistype", this, "Attempted To Access Null Instance.")
+			debug call globalAddress.monitor_ubersplat(label, handleToTrack)
+		debug endmethod
+		debug method monitor_region				takes string label, region				handleToTrack returns nothing
+			debug call ThrowError(recycler[this] != -1, "Alloc", "monitor_region", "thistype", this, "Attempted To Access Null Instance.")
+			debug call globalAddress.monitor_region(label, handleToTrack)
+		debug endmethod
+		debug method monitor_fogmodifier		takes string label, fogmodifier			handleToTrack returns nothing
+			debug call ThrowError(recycler[this] != -1, "Alloc", "monitor_fogmodifier", "thistype", this, "Attempted To Access Null Instance.")
+			debug call globalAddress.monitor_fogmodifier(label, handleToTrack)
+		debug endmethod
+		debug method monitor_hashtable			takes string label, hashtable			handleToTrack returns nothing
+			debug call ThrowError(recycler[this] != -1, "Alloc", "monitor_hashtable", "thistype", this, "Attempted To Access Null Instance.")
+			debug call globalAddress.monitor_hashtable(label, handleToTrack)
+		debug endmethod
 		
 		/*
 		*	analysis
@@ -77,7 +277,7 @@ library AllocT /* v1.1.0.0
 		endmethod
 		
 		static if DEBUG_MODE then
-			//! runtextmacro MEMORY_ANALYSIS_STATIC_FIELD_NEW("recycler")
+			//! runtextmacro MEMORY_ANALYSIS_STATIC_FIELD_FAST("recycler")
 			
 			static method calculateMemoryUsage takes nothing returns integer
 				return calculateAllocatedMemory__recycler()
@@ -92,9 +292,16 @@ library AllocT /* v1.1.0.0
 		*	initialization
 		*/
 		private static method onInit takes nothing returns nothing
-			set recycler = Table.create()
+			local integer i = 0
+
+			set recycler[8191] = 0 //so that the array doesn't reallocate over and over again
 			
-			set recycler[0] = 1
+			loop
+				set recycler[i] = i + 1
+				
+				exitwhen i == 8190
+				set i = i + 1
+			endloop
 		endmethod
 	endmodule
 endlibrary
