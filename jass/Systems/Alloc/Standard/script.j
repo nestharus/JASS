@@ -88,6 +88,8 @@ library Alloc /* v1.3.1.1
 *				debug method monitor_fogmodifier		takes string label, fogmodifier			handleToTrack returns nothing
 *				debug method monitor_hashtable			takes string label, hashtable			handleToTrack returns nothing
 *
+*
+* Thanks to Ruke for the algorithm
 ************************************************************************************/
 	module Alloc
 		/*
