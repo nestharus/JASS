@@ -1,4 +1,4 @@
-library DamageEventModification /* v1.1.0.0
+library DamageEventModification /* v1.1.0.1
 *************************************************************************************
 *
 *   Damage Event Modification plugin for DDS
@@ -234,8 +234,6 @@ module DAMAGE_EVENT_MODIFICATION_RESPONSE_AFTER
                     endif
                 elseif (life - damage_p < .4051) then
                     call SetWidgetLife(u, actualDamage)
-                elseif (life + actualDamage - damage_p > GetUnitState(u, UNIT_STATE_MAX_LIFE)) then
-                    call FixLife.applyLife(targetId_p, life + actualDamage - damage_p)
                 else
                     call SetWidgetLife(u, life + actualDamage - damage_p)
                 endif

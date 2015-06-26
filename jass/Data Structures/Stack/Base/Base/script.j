@@ -1,4 +1,4 @@
-library List /* v1.0.0.3
+library Stack /* v1.0.0.7
 ************************************************************************************
 *
 *   */uses/*
@@ -7,7 +7,7 @@ library List /* v1.0.0.3
 *
 ************************************************************************************
 *
-*   module List
+*   module Stack
 *
 *       Description
 *       -------------------------
@@ -19,28 +19,18 @@ library List /* v1.0.0.3
 *
 *           readonly static integer sentinel
 *
-*           readonly thistype list
-*
 *           readonly thistype first
-*           readonly thistype last
-*
 *           readonly thistype next
-*           readonly thistype prev
 *
 *       Methods
 *       -------------------------
 *
 *           static method create takes nothing returns thistype
 *           method destroy takes nothing returns nothing
-*               - May only destroy lists
+*               - May only destroy stacks
 *
 *           method push takes nothing returns thistype
-*           method enqueue takes nothing returns thistype
-*
 *           method pop takes nothing returns nothing
-*           method dequeue takes nothing returns nothing
-*
-*           method remove takes nothing returns nothing
 *
 *           method clear takes nothing returns nothing
 *
@@ -48,45 +38,24 @@ library List /* v1.0.0.3
 *           debug static method getAllocatedMemoryAsString takes nothing returns string
 *
 ************************************************************************************/
-    module List
+    module Stack
         private static thistype collectionCount = 0
         private static thistype nodeCount = 0
         debug private boolean isNode
         debug private boolean isCollection
         
-        private thistype _list
-        method operator list takes nothing returns thistype
-            debug call ThrowError(this == 0,    "List", "list", "thistype", this, "Attempted To Read Null Node.")
-            debug call ThrowError(not isNode,   "List", "list", "thistype", this, "Attempted To Read Invalid Node.")
-            return _list
-        endmethod
-        
         private thistype _next
         method operator next takes nothing returns thistype
-            debug call ThrowError(this == 0,    "List", "next", "thistype", this, "Attempted To Go Out Of Bounds.")
-            debug call ThrowError(not isNode,   "List", "next", "thistype", this, "Attempted To Read Invalid Node.")
+            debug call ThrowError(this == 0,        "Stack", "next", "thistype", this, "Attempted To Go Out Of Bounds.")
+            debug call ThrowError(not isNode,       "Stack", "next", "thistype", this, "Attempted To Read Invalid Node.")
             return _next
-        endmethod
-        
-        private thistype _prev
-        method operator prev takes nothing returns thistype
-            debug call ThrowError(this == 0,    "List", "prev", "thistype", this, "Attempted To Go Out Of Bounds.")
-            debug call ThrowError(not isNode,   "List", "prev", "thistype", this, "Attempted To Read Invalid Node.")
-            return _prev
         endmethod
         
         private thistype _first
         method operator first takes nothing returns thistype
-            debug call ThrowError(this == 0,        "List", "first", "thistype", this, "Attempted To Read Null List.")
-            debug call ThrowError(not isCollection, "List", "first", "thistype", this, "Attempted To Read Invalid List.")
+            debug call ThrowError(this == 0,            "Stack", "first", "thistype", this, "Attempted To Read Null Stack.")
+            debug call ThrowError(not isCollection,     "Stack", "first", "thistype", this, "Attempted To Read Invalid Stack.")
             return _first
-        endmethod
-        
-        private thistype _last
-        method operator last takes nothing returns thistype
-            debug call ThrowError(this == 0,        "List", "last", "thistype", this, "Attempted To Read Null List.")
-            debug call ThrowError(not isCollection, "List", "last", "thistype", this, "Attempted To Read Invalid List.")
-            return _last
         endmethod
         
         static method operator sentinel takes nothing returns integer
@@ -97,7 +66,7 @@ library List /* v1.0.0.3
             local thistype this = thistype(0)._first
             
             if (0 == this) then
-                debug call ThrowError(collectionCount == 8191, "List", "allocateCollection", "thistype", 0, "Overflow.")
+                debug call ThrowError(collectionCount == 8191, "Stack", "allocateCollection", "thistype", 0, "Overflow.")
                 
                 set this = collectionCount + 1
                 set collectionCount = this
@@ -112,7 +81,7 @@ library List /* v1.0.0.3
             local thistype this = thistype(0)._next
             
             if (0 == this) then
-                debug call ThrowError(nodeCount == 8191, "List", "allocateNode", "thistype", 0, "Overflow.")
+                debug call ThrowError(nodeCount == 8191, "Stack", "allocateNode", "thistype", 0, "Overflow.")
                 
                 set this = nodeCount + 1
                 set nodeCount = this
@@ -124,7 +93,7 @@ library List /* v1.0.0.3
         endmethod
         
         static method create takes nothing returns thistype
-            local thistype this = allocateCollection()
+            local thistype this = allocateCollection()     
             
             debug set isCollection = true
             
@@ -135,123 +104,45 @@ library List /* v1.0.0.3
         method push takes nothing returns thistype
             local thistype node = allocateNode()
             
-            debug call ThrowError(this == 0,        "List", "push", "thistype", this, "Attempted To Push On To Null List.")
-            debug call ThrowError(not isCollection, "List", "push", "thistype", this, "Attempted To Push On To Invalid List.")
+            debug call ThrowError(this == 0,            "Stack", "push", "thistype", this, "Attempted To Push On To Null Stack.")
+            debug call ThrowError(not isCollection,     "Stack", "push", "thistype", this, "Attempted To Push On To Invalid Stack.")
             
             debug set node.isNode = true
             
-            set node._list = this
-        
-            if (_first == 0) then
-                set _first = node
-                set _last = node
-                set node._next = 0
-            else
-                set _first._prev = node
-                set node._next = _first
-                set _first = node
-            endif
-            
-            set node._prev = 0
-            
-            return node
-        endmethod
-        method enqueue takes nothing returns thistype
-            local thistype node = allocateNode()
-            
-            debug call ThrowError(this == 0,        "List", "enqueue", "thistype", this, "Attempted To Enqueue On To Null List.")
-            debug call ThrowError(not isCollection, "List", "enqueue", "thistype", this, "Attempted To Enqueue On To Invalid List.")
-            
-            debug set node.isNode = true
-            
-            set node._list = this
-        
-            if (_first == 0) then
-                set _first = node
-                set _last = node
-                set node._prev = 0
-            else
-                set _last._next = node
-                set node._prev = _last
-                set _last = node
-            endif
-            
-            set node._next = 0
+            set node._next = _first
+            set _first = node
             
             return node
         endmethod
         method pop takes nothing returns nothing
             local thistype node = _first
             
-            debug call ThrowError(this == 0,        "List", "pop", "thistype", this, "Attempted To Pop Null List.")
-            debug call ThrowError(not isCollection, "List", "pop", "thistype", this, "Attempted To Pop Invalid List.")
-            debug call ThrowError(node == 0,        "List", "pop", "thistype", this, "Attempted To Pop Empty List.")
+            debug call ThrowError(this == 0,            "Stack", "pop", "thistype", this, "Attempted To Pop Null Stack.")
+            debug call ThrowError(not isCollection,     "Stack", "pop", "thistype", this, "Attempted To Pop Invalid Stack.")
+            debug call ThrowError(node == 0,            "Stack", "pop", "thistype", this, "Attempted To Pop Empty Stack.")
             
             debug set node.isNode = false
             
-            set _first._list = 0
-            
-            set _first = _first._next
-            if (_first == 0) then
-                set _last = 0
-            else
-                set _first._prev = 0
-            endif
+            set _first = node._next
             
             set node._next = thistype(0)._next
             set thistype(0)._next = node
         endmethod
-        method dequeue takes nothing returns nothing
-            local thistype node = _last
-            
-            debug call ThrowError(this == 0,        "List", "dequeue", "thistype", this, "Attempted To Dequeue Null List.")
-            debug call ThrowError(not isCollection, "List", "dequeue", "thistype", this, "Attempted To Dequeue Invalid List.")
-            debug call ThrowError(node == 0,        "List", "dequeue", "thistype", this, "Attempted To Dequeue Empty List.")
-            
-            debug set node.isNode = false
-            
-            set _last._list = 0
+        private method getBottom takes nothing returns thistype
+            set this = _first
         
-            set _last = _last._prev
-            if (_last == 0) then
-                set _first = 0
-            else
-                set _last._next = 0
-            endif
+            loop
+                exitwhen _next == 0
+                set this = _next
+            endloop
             
-            set node._next = thistype(0)._next
-            set thistype(0)._next = node
-        endmethod
-        method remove takes nothing returns nothing
-            local thistype node = this
-            set this = node._list
-            
-            debug call ThrowError(node == 0,        "List", "remove", "thistype", this, "Attempted To Remove Null Node.")
-            debug call ThrowError(not node.isNode,  "List", "remove", "thistype", this, "Attempted To Remove Invalid Node (" + I2S(node) + ").")
-            
-            debug set node.isNode = false
-            
-            set node._list = 0
-        
-            if (0 == node._prev) then
-                set _first = node._next
-            else
-                set node._prev._next = node._next
-            endif
-            if (0 == node._next) then
-                set _last = node._prev
-            else
-                set node._next._prev = node._prev
-            endif
-            
-            set node._next = thistype(0)._next
-            set thistype(0)._next = node
+            return this
         endmethod
         method clear takes nothing returns nothing
             debug local thistype node = _first
         
-            debug call ThrowError(this == 0,            "List", "clear", "thistype", this, "Attempted To Clear Null List.")
-            debug call ThrowError(not isCollection,     "List", "clear", "thistype", this, "Attempted To Clear Invalid List.")
+            debug call ThrowError(this == 0,            "Stack", "clear", "thistype", this, "Attempted To Clear Null Stack.")
+            debug call ThrowError(not isCollection,     "Stack", "clear", "thistype", this, "Attempted To Clear Invalid Stack.")
             
             static if DEBUG_MODE then
                 loop
@@ -265,15 +156,13 @@ library List /* v1.0.0.3
                 return
             endif
             
-            set _last._next = thistype(0)._next
+            set getBottom()._next = thistype(0)._next
             set thistype(0)._next = _first
-            
             set _first = 0
-            set _last = 0
         endmethod
         method destroy takes nothing returns nothing
-            debug call ThrowError(this == 0,            "List", "destroy", "thistype", this, "Attempted To Destroy Null List.")
-            debug call ThrowError(not isCollection,     "List", "destroy", "thistype", this, "Attempted To Destroy Invalid List.")
+            debug call ThrowError(this == 0,            "Stack", "destroy", "thistype", this, "Attempted To Destroy Null Stack.")
+            debug call ThrowError(not isCollection,     "Stack", "destroy", "thistype", this, "Attempted To Destroy Invalid Stack.")
             
             static if DEBUG_MODE then
                 debug call clear()
@@ -281,10 +170,8 @@ library List /* v1.0.0.3
                 debug set isCollection = false
             else
                 if (_first != 0) then
-                    set _last._next = thistype(0)._next
+                    set getBottom()._next = thistype(0)._next
                     set thistype(0)._next = _first
-                    
-                    set _last = 0
                 endif
             endif
             
