@@ -41,7 +41,7 @@ library GetUnitCollision /* v2.0.1.0
             set m = nm
         endloop
         
-        set m = R2I(m*10)/10.
+        set m = R2I(m*100)/100.
         
         set uc.real[i] = m
         
