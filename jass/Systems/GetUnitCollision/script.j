@@ -3,9 +3,7 @@ library GetUnitCollision /* v2.0.1.0
 *
 *   Retrieves collision size for a unit (different from pathing map)
 *
-*   Assumes collision will always be an integer
-*
-*   100% accurate to 1 decimal for collision sizes >= 5.1
+*   Accurate to 2 decimals
 *
 *************************************************************************************
 *
