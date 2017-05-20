@@ -28,7 +28,6 @@ library GetUnitCollision /* v2.0.1.0
         local real l = 0
         local real h = 300
         local real m = 150
-        local real nm
         
         loop
             if (IsUnitInRangeXY(u, x+m, y, 0)) then
@@ -36,9 +35,8 @@ library GetUnitCollision /* v2.0.1.0
             else
                 set h = m
             endif
-            set nm = (l+h)/2
-            exitwhen nm+.001 >  m and nm-.001 < m
-            set m = nm
+            set m = (l+h)/2
+            exitwhen l+.005 > h
         endloop
         
         set m = R2I(m*100)/100.
