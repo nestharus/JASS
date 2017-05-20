@@ -39,7 +39,7 @@ library GetUnitCollision /* v2.0.1.0
             exitwhen l+.005 > h
         endloop
         
-        set m = R2I(m*100)/100.
+        set m = R2I((m + .005)*100)/100.
         
         set uc.real[i] = m
         
